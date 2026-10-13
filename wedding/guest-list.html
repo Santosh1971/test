@@ -1,0 +1,320 @@
+<title>Pratyakcha Wedding Guests</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Mukta:wght@400;500;700&display=swap">
+<style>
+/* Layout: single column ledger. Header, a command bar for spoken or typed edits, group totals, then the guest table. */
+:root {
+  --bg: #fbf8f4;
+  --surface: #ffffff;
+  --fg: #2a1a1f;
+  --muted: #76636a;
+  --line: #e8ddd6;
+  --maroon: #8a1c3c;
+  --marigold: #e49a12;
+  --marigold-soft: #fdf0d6;
+  --ok: #2f7d4f;
+  --warn: #a8560a;
+  --err: #b42318;
+  --display: "Tiro Devanagari Hindi", Georgia, serif;
+  --body: "Mukta", "Noto Sans Devanagari", system-ui, sans-serif;
+  /* group colors */
+  --c-rel: #8a1c3c; --c-anu: #b5487a; --c-san: #2e5f8a; --c-blr: #2f7d4f; --c-pra: #c27a07; --c-none: #8d7f84;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1b1316; --surface: #251a1e; --fg: #f3e9ec; --muted: #b5a2a8; --line: #3d2c32;
+  --maroon: #e97a9b; --marigold: #f2b544; --marigold-soft: #3a2a12;
+  --ok: #6fcf97; --warn: #f2a65a; --err: #ff8a80;
+  --c-rel: #e97a9b; --c-anu: #e59bc0; --c-san: #7fb2e5; --c-blr: #6fcf97; --c-pra: #f2b544; --c-none: #a7979c;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #1b1316; --surface: #251a1e; --fg: #f3e9ec; --muted: #b5a2a8; --line: #3d2c32;
+  --maroon: #e97a9b; --marigold: #f2b544; --marigold-soft: #3a2a12;
+  --ok: #6fcf97; --warn: #f2a65a; --err: #ff8a80;
+  --c-rel: #e97a9b; --c-anu: #e59bc0; --c-san: #7fb2e5; --c-blr: #6fcf97; --c-pra: #f2b544; --c-none: #a7979c;
+  color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.45; }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 64px; display: grid; gap: 22px; }
+header h1 { font-family: var(--display); font-weight: 400; font-size: clamp(1.7rem, 5vw, 2.4rem); color: var(--maroon); margin: 0; text-wrap: balance; line-height: 1.15; }
+header p { margin: 4px 0 0; color: var(--muted); }
+.eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: .72rem; font-weight: 700; color: var(--marigold); }
+
+/* command bar */
+.cmd { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; }
+.cmd label { font-weight: 700; }
+.cmd-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.cmd-row input { flex: 1 1 260px; min-width: 0; font: inherit; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.cmd-row input:focus { outline: none; border-color: var(--marigold); box-shadow: 0 0 0 3px var(--marigold-soft); }
+button { font: inherit; cursor: pointer; border-radius: 8px; border: 1.5px solid transparent; padding: 9px 16px; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--marigold); outline-offset: 2px; }
+.btn-primary { background: var(--maroon); color: var(--surface); font-weight: 700; }
+.btn-ghost { background: transparent; border-color: var(--line); color: var(--fg); }
+.hint { color: var(--muted); font-size: .88rem; }
+.hint code { background: var(--marigold-soft); color: var(--fg); padding: 1px 6px; border-radius: 4px; font-family: inherit; }
+.msg { font-size: .92rem; min-height: 1.4em; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.msg.ok { color: var(--ok); } .msg.err { color: var(--err); }
+.msg button { padding: 2px 10px; font-size: .85rem; }
+
+/* totals */
+.totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tot { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface); text-align: left; color: var(--fg); display: grid; gap: 2px; border-top: 4px solid var(--gc); }
+.tot.active { background: var(--marigold-soft); border-color: var(--marigold); border-top-color: var(--gc); }
+.tot .g { font-size: .82rem; font-weight: 700; color: var(--gc); }
+.tot .n { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.tot .s { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* table */
+.tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.tools input { font: inherit; padding: 8px 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); flex: 1 1 200px; min-width: 0; max-width: 340px; }
+.tablebox { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; min-width: 620px; }
+th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 10px 8px; border-bottom: 2px solid var(--line); position: sticky; top: 0; background: var(--surface); }
+td { padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+tr.flash td { animation: flash 1.6s ease-out; }
+@keyframes flash { from { background: var(--marigold-soft); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { tr.flash td { animation: none; background: var(--marigold-soft); } }
+td.sn { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--maroon); width: 44px; }
+td input, td select { font: inherit; color: var(--fg); background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 6px 6px; width: 100%; }
+td input:hover, td select:hover { border-color: var(--line); }
+td input:focus, td select:focus { border-color: var(--marigold); background: var(--bg); outline: none; }
+td.num { width: 84px; } td.num input { text-align: right; font-variant-numeric: tabular-nums; }
+td.rel { width: 190px; }
+td.rel select { color: var(--gc); font-weight: 500; }
+.hi { display: block; font-size: .82rem; color: var(--muted); padding-left: 7px; margin-top: -3px; font-family: var(--display); }
+.check { font-size: .7rem; font-weight: 700; color: var(--warn); text-transform: uppercase; letter-spacing: .06em; padding-left: 7px; }
+td.act { width: 40px; text-align: center; }
+td.act button { padding: 4px 8px; background: transparent; color: var(--muted); border-color: transparent; font-size: 1.1rem; line-height: 1; }
+td.act button:hover { color: var(--err); border-color: var(--line); }
+.empty { padding: 28px 16px; text-align: center; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Girl's side · from Anupama's notebook</div>
+    <h1>Pratyakcha's Wedding — Guest List</h1>
+    <p id="sub">Loading the list…</p>
+  </header>
+
+  <section class="cmd" aria-label="Change a row">
+    <label for="cmdInput">Tell the list what to change</label>
+    <form class="cmd-row" id="cmdForm">
+      <input id="cmdInput" autocomplete="off" placeholder="serial no 6, Santosh, 4 person, 2 rooms, relative">
+      <button class="btn-primary" type="submit">Apply</button>
+    </form>
+    <div class="hint">Start with the serial number, then say only what changes, in any order. Examples:
+      <code>serial no 6, Santosh, 4 person, 2 rooms, relative</code>
+      <code>12 Bangalore friend</code>
+      <code>add Ramesh Mama, 3 person, 1 room, relative</code>
+      <code>delete 45</code>.
+      To speak, tap the microphone on your phone keyboard.</div>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="totals" id="totals" aria-label="Totals by group"></section>
+
+  <section style="display:grid;gap:10px">
+    <div class="tools">
+      <input id="search" type="search" placeholder="Search names" aria-label="Search names">
+      <button class="btn-ghost" id="addBtn" type="button">+ Add guest</button>
+    </div>
+    <div class="tablebox">
+      <table>
+        <thead><tr><th>SN</th><th>Name</th><th style="text-align:right">Persons</th><th style="text-align:right">Rooms</th><th>Related to</th><th><span class="sr" hidden>Delete</span></th></tr></thead>
+        <tbody id="rows"><tr><td colspan="6" class="empty">Loading guests…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+const GROUPS = [
+  { key: "Relatives", color: "--c-rel" },
+  { key: "Anupama Friend", color: "--c-anu" },
+  { key: "Santosh Friend", color: "--c-san" },
+  { key: "Bangalore Friend", color: "--c-blr" },
+  { key: "Pratyakcha Friend", color: "--c-pra" },
+  { key: "Not decided", color: "--c-none" },
+];
+const colorOf = g => (GROUPS.find(x => x.key === g) || GROUPS[5]).color;
+
+let col = null, guests = [], filter = null, query = "", lastUndo = null, flashSn = null;
+const $ = id => document.getElementById(id);
+const docId = sn => "g" + String(sn).padStart(4, "0");
+
+/* ---------- command parsing ---------- */
+const WORDS = { zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, nineteen:19, twenty:20, no:0, ek:1, teen:3, char:4, chaar:4, paanch:5, panch:5 };
+const NUM = "(\\d+|" + Object.keys(WORDS).join("|") + ")";
+const toNum = s => /^\d+$/.test(s) ? parseInt(s, 10) : WORDS[s.toLowerCase()];
+const GROUP_RX = [
+  ["Santosh Friend", /\bsantosh(?:\s*ji)?(?:'s)?\s+friends?\b/i],
+  ["Anupama Friend", /\banupama(?:\s*ji)?(?:'s)?(?:\s+friends?)?\b/i],
+  ["Bangalore Friend", /\b(?:bangalore|bengaluru|banglore|blr)(?:\s+friends?)?\b/i],
+  ["Pratyakcha Friend", /\b(?:pratyakcha|pratyaksha|pratyakchha)(?:'s)?(?:\s+friends?)?\b/i],
+  ["Relatives", /\b(?:relatives?|relation|family|rishtedar)\b/i],
+  ["Not decided", /\b(?:not decided|unassigned|undecided)\b/i],
+];
+
+function parseCommand(text) {
+  let s = " " + text.trim().replace(/[।|]/g, ",") + " ";
+  const out = {};
+  const del = s.match(/^\s*(?:delete|remove|hatao|cancel)\s+(?:serial\s*(?:no\.?|number)?\s*|sn\s*|s\.?\s*no\.?\s*|#)?(\d+)/i);
+  if (del) return { action: "delete", sn: +del[1] };
+  if (/^\s*(?:add|new)\b/i.test(s)) { out.action = "add"; s = s.replace(/^\s*(?:add|new)(?:\s+guest)?\b/i, " "); }
+  else {
+    const m = s.match(new RegExp("^\\s*(?:serial\\s*(?:no\\.?|number|num)?|sr\\.?\\s*no\\.?|s\\.?\\s*no\\.?|sn|row|number|#)?\\s*[:.\\-]?\\s*" + NUM + "\\b(?!\\s*(?:persons?|people|pax|members?|guests?|rooms?|log|adults?))", "i"));
+    if (!m) return { error: "Start with the serial number, for example: serial no 6, Santosh, 4 person." };
+    out.action = "update"; out.sn = toNum(m[1]); s = " " + s.slice(m[0].length) + " ";
+  }
+  const p = s.match(new RegExp("\\b" + NUM + "\\s*(?:persons?|people|peoples|pax|members?|guests?|log|adults?|janey|jan)\\b", "i"))
+         || s.match(new RegExp("\\b(?:persons?|people|members?)\\s*[:=\\-]?\\s*" + NUM + "\\b", "i"));
+  if (p) { out.persons = toNum(p[1]); s = s.replace(p[0], " "); }
+  const r = s.match(new RegExp("\\b" + NUM + "\\s*(?:rooms?|kamra|kamre)\\b", "i"))
+         || s.match(new RegExp("\\brooms?\\s*[:=\\-]?\\s*" + NUM + "\\b", "i"));
+  if (r) { out.rooms = toNum(r[1]); s = s.replace(r[0], " "); }
+  for (const [g, rx] of GROUP_RX) { const gm = s.match(rx); if (gm) { out.relation = g; s = s.replace(gm[0], " "); break; } }
+  let name = s.replace(/\b(?:name|naam|change|update|set|make|to|is|and|with|related)\b/gi, " ")
+              .replace(/[,;:.]+/g, " ").replace(/\s+/g, " ").trim();
+  if (/[\p{L}]/u.test(name)) out.name = name;
+  if (out.action === "update" && !("name" in out) && !("persons" in out) && !("rooms" in out) && !("relation" in out))
+    return { error: "I found serial no " + out.sn + " but nothing to change. Add a name, persons, rooms or a group." };
+  if (out.action === "add" && !out.name) return { error: "Say the guest's name, for example: add Ramesh Mama, 3 person, relative." };
+  return out;
+}
+
+function describe(c) {
+  const bits = [];
+  if (c.name) bits.push(c.name);
+  if (c.persons != null) bits.push(c.persons + (c.persons === 1 ? " person" : " persons"));
+  if (c.rooms != null) bits.push(c.rooms + (c.rooms === 1 ? " room" : " rooms"));
+  if (c.relation) bits.push(c.relation);
+  return bits.join(", ");
+}
+
+function say(text, kind, undo) {
+  const m = $("msg"); m.className = "msg " + (kind || ""); m.textContent = text;
+  if (undo) { const b = document.createElement("button"); b.className = "btn-ghost"; b.type = "button"; b.textContent = "Undo"; b.onclick = undo; m.append(b); }
+}
+
+async function runCommand(text) {
+  if (!col) return say("The list isn't connected yet. Sign in to claude.ai and reload.", "err");
+  const c = parseCommand(text);
+  if (c.error) return say(c.error, "err");
+  try {
+    if (c.action === "delete") {
+      const g = guests.find(x => x.sn === c.sn); if (!g) return say("There's no serial no " + c.sn + ".", "err");
+      const before = { ...g };
+      await col.doc(docId(c.sn)).delete();
+      say("Deleted serial no " + c.sn + " (" + g.name + ").", "ok", async () => { await col.doc(docId(c.sn)).set(before); say("Restored serial no " + c.sn + ".", "ok"); });
+    } else if (c.action === "add") {
+      const sn = guests.reduce((m, x) => Math.max(m, x.sn), 0) + 1;
+      const row = { sn, name: c.name, hindi: "", persons: c.persons ?? null, rooms: c.rooms ?? null, relation: c.relation || "Not decided" };
+      await col.doc(docId(sn)).set(row); flashSn = sn;
+      say("Added serial no " + sn + ": " + describe(row) + ".", "ok", async () => { await col.doc(docId(sn)).delete(); say("Removed serial no " + sn + ".", "ok"); });
+    } else {
+      const g = guests.find(x => x.sn === c.sn);
+      if (!g) return say("There's no serial no " + c.sn + ". To make a new row, start with \"add\".", "err");
+      const before = { name: g.name, hindi: g.hindi || "", persons: g.persons ?? null, rooms: g.rooms ?? null, relation: g.relation };
+      const patch = {};
+      if (c.name) { patch.name = c.name; patch.hindi = ""; }
+      if (c.persons != null) patch.persons = c.persons;
+      if (c.rooms != null) patch.rooms = c.rooms;
+      if (c.relation) patch.relation = c.relation;
+      await col.doc(docId(c.sn)).update(patch); flashSn = c.sn;
+      say("Serial no " + c.sn + " updated: " + describe(c) + ".", "ok", async () => { await col.doc(docId(c.sn)).update(before); say("Undid the change to serial no " + c.sn + ".", "ok"); });
+    }
+    $("cmdInput").value = "";
+  } catch (e) {
+    say(e && e.code === "not_granted" ? "You can view this list but not edit it. Ask Santosh for edit access." : "That change didn't save (" + (e && e.message || e) + "). Try again.", "err");
+  }
+}
+
+/* ---------- rendering ---------- */
+function renderTotals() {
+  const t = $("totals"); t.textContent = "";
+  const all = { key: "All guests", color: "--maroon" };
+  [all, ...GROUPS].forEach(gr => {
+    const list = gr === all ? guests : guests.filter(x => (x.relation || "Not decided") === gr.key);
+    if (gr.key === "Not decided" && !list.length) return;
+    const persons = list.reduce((a, x) => a + (+x.persons || 0), 0);
+    const rooms = list.reduce((a, x) => a + (+x.rooms || 0), 0);
+    const b = document.createElement("button"); b.type = "button";
+    b.className = "tot" + ((filter === gr.key) || (gr === all && !filter) ? " active" : "");
+    b.style.setProperty("--gc", "var(" + gr.color + ")");
+    b.innerHTML = '<span class="g"></span><span class="n"></span><span class="s"></span>';
+    b.querySelector(".g").textContent = gr.key;
+    b.querySelector(".n").textContent = persons + " persons";
+    b.querySelector(".s").textContent = list.length + " entries · " + rooms + (rooms === 1 ? " room" : " rooms");
+    b.onclick = () => { filter = gr === all ? null : gr.key; render(); };
+    t.append(b);
+  });
+}
+
+function renderRows() {
+  const tb = $("rows"); tb.textContent = "";
+  const q = query.toLowerCase();
+  const list = guests.filter(x => (!filter || (x.relation || "Not decided") === filter) &&
+    (!q || (x.name || "").toLowerCase().includes(q) || (x.hindi || "").includes(query) || String(x.sn) === q));
+  if (!list.length) {
+    tb.innerHTML = '<tr><td colspan="6" class="empty"></td></tr>';
+    tb.querySelector("td").textContent = guests.length ? "No guests match this filter." : "No guests yet. Type \"add\" and a name above to add the first one.";
+    return;
+  }
+  for (const g of list) {
+    const tr = document.createElement("tr");
+    if (g.sn === flashSn) tr.className = "flash";
+    tr.innerHTML = '<td class="sn"></td><td class="nm"><input aria-label="Name"></td>' +
+      '<td class="num"><input type="number" min="0" inputmode="numeric" aria-label="Persons"></td>' +
+      '<td class="num"><input type="number" min="0" inputmode="numeric" aria-label="Rooms"></td>' +
+      '<td class="rel"><select aria-label="Related to"></select></td>' +
+      '<td class="act"><button type="button" title="Delete row" aria-label="Delete row">×</button></td>';
+    tr.querySelector(".sn").textContent = g.sn;
+    const [nm, pe, ro] = tr.querySelectorAll("input");
+    nm.id = "name-" + g.sn; pe.id = "persons-" + g.sn; ro.id = "rooms-" + g.sn;
+    nm.value = g.name || ""; pe.value = g.persons ?? ""; ro.value = g.rooms ?? "";
+    const td = tr.querySelector(".nm");
+    if (g.hindi) { const h = document.createElement("span"); h.className = "hi"; h.textContent = g.hindi; td.append(h); }
+    if ((g.name || "").includes("?")) { const c = document.createElement("span"); c.className = "check"; c.textContent = "Check spelling"; td.append(c); }
+    const sel = tr.querySelector("select"); sel.id = "rel-" + g.sn;
+    GROUPS.forEach(gr => { const o = document.createElement("option"); o.value = o.textContent = gr.key; sel.append(o); });
+    sel.value = g.relation || "Not decided";
+    tr.querySelector(".rel").style.setProperty("--gc", "var(" + colorOf(sel.value) + ")");
+    const save = async (patch) => {
+      try { await col.doc(docId(g.sn)).update(patch); say("Serial no " + g.sn + " saved.", "ok"); }
+      catch (e) { say("That change didn't save. " + (e && e.code === "not_granted" ? "You have view-only access." : "Try again."), "err"); }
+    };
+    nm.onchange = () => { const v = nm.value.trim(); if (v && v !== g.name) save({ name: v, hindi: "" }); };
+    pe.onchange = () => save({ persons: pe.value === "" ? null : Math.max(0, parseInt(pe.value, 10) || 0) });
+    ro.onchange = () => save({ rooms: ro.value === "" ? null : Math.max(0, parseInt(ro.value, 10) || 0) });
+    sel.onchange = () => save({ relation: sel.value });
+    tr.querySelector(".act button").onclick = () => runCommand("delete " + g.sn);
+    tb.append(tr);
+  }
+}
+
+function render() {
+  const persons = guests.reduce((a, x) => a + (+x.persons || 0), 0);
+  const rooms = guests.reduce((a, x) => a + (+x.rooms || 0), 0);
+  const unknown = guests.filter(x => x.persons == null).length;
+  $("sub").textContent = guests.length + " entries · " + persons + " persons · " + rooms + " rooms" + (unknown ? " · " + unknown + " entries still need a head count" : "");
+  renderTotals(); renderRows();
+}
+
+$("cmdForm").addEventListener("submit", e => { e.preventDefault(); const v = $("cmdInput").value.trim(); if (v) runCommand(v); });
+$("search").addEventListener("input", e => { query = e.target.value.trim(); renderRows(); });
+$("addBtn").addEventListener("click", () => { const i = $("cmdInput"); i.value = "add "; i.focus(); });
+
+(async () => {
+  const db = window.claude ? await window.claude.use("db") : null;
+  if (!db) {
+    $("sub").textContent = "Sign in to claude.ai to see and edit the guest list.";
+    $("rows").innerHTML = '<tr><td colspan="6" class="empty">The guest list loads once you are signed in.</td></tr>';
+    return;
+  }
+  col = db.collection("guests");
+  col.orderBy("sn").onSnapshot(snap => {
+    guests = snap.docs.map(d => d.data()).filter(Boolean);
+    render(); flashSn = null;
+  }, err => say("Couldn't load the list (" + err.message + "). Reload the page.", "err"));
+})();
+</script>
