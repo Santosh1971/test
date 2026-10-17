@@ -68,7 +68,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .tools input { font: inherit; padding: 8px 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); flex: 1 1 200px; min-width: 0; max-width: 340px; }
 .tablebox { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
-table { width: 100%; border-collapse: collapse; min-width: 960px; }
+table { width: 100%; border-collapse: collapse; min-width: 1090px; }
 th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 10px 8px; border-bottom: 2px solid var(--line); position: sticky; top: 0; background: var(--surface); }
 td { padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 tr:last-child td { border-bottom: 0; }
@@ -115,6 +115,7 @@ td.act button:hover { color: var(--err); border-color: var(--line); }
       <code>serial no 6, Santosh, 4 person, 2 rooms, relative</code>
       <code>12 Bangalore friend</code>
       <code>8 hotel 1, 2 days, room no 101</code>
+      <code>15 local, both days</code>
       <code>add Ramesh Mama, 3 person, 1 room, relative</code>
       <code>delete 45</code>.
       To speak, tap the microphone on your phone keyboard.</div>
@@ -131,8 +132,8 @@ td.act button:hover { color: var(--err); border-color: var(--line); }
     </div>
     <div class="tablebox">
       <table>
-        <thead><tr><th>SN</th><th>Name</th><th style="text-align:right">Persons</th><th style="text-align:right">Rooms</th><th>Related to</th><th>Hotel</th><th>Stay</th><th>Room no.</th><th><span class="sr" hidden>Delete</span></th></tr></thead>
-        <tbody id="rows"><tr><td colspan="9" class="empty">Loading guests…</td></tr></tbody>
+        <thead><tr><th>SN</th><th>Name</th><th style="text-align:right">Persons</th><th style="text-align:right">Rooms</th><th>Related to</th><th>Coming on</th><th>Hotel</th><th>Stay</th><th>Room no.</th><th><span class="sr" hidden>Delete</span></th></tr></thead>
+        <tbody id="rows"><tr><td colspan="10" class="empty">Loading guests…</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -185,17 +186,20 @@ function parseCommand(text) {
   const r = s.match(new RegExp("\\b" + NUM + "\\s*(?:rooms?|kamra|kamre)\\b", "i"))
          || s.match(new RegExp("\\brooms?\\s*[:=\\-]?\\s*" + NUM + "\\b", "i"));
   if (r) { out.rooms = toNum(r[1]); s = s.replace(r[0], " "); }
+  const at = s.match(/\b(?:both days|dono din|all days|day\s*(?:1|one)\s*(?:and|&|,)\s*(?:day\s*)?(?:2|two))\b/i)
+          || s.match(/\b(?:day\s*(?:1|one)|first day|pehla din|pehle din)\b/i) || s.match(/\b(?:day\s*(?:2|two)|second day|dusra din|dusre din)\b/i);
+  if (at) { const w = at[0].toLowerCase(); out.attend = /both|dono|all|and|&|,/.test(w) ? "Both days" : /1|one|first|pehl/.test(w) ? "Day 1" : "Day 2"; s = s.replace(at[0], " "); }
   const h = s.match(/\bhotel\s*(?:no\.?\s*)?(1|2|one|two)\b/i);
   if (h) { out.hotel = /^(1|one)$/i.test(h[1]) ? "Hotel 1" : "Hotel 2"; s = s.replace(h[0], " "); }
-  else { const nh = s.match(/\b(?:no hotel|own arrangement|local|no stay)\b/i); if (nh) { out.hotel = "No hotel"; s = s.replace(nh[0], " "); } }
+  else { const nh = s.match(/\b(?:no hotel|own arrangement|local|no stay|no room)\b/i); if (nh) { out.hotel = "No hotel"; s = s.replace(nh[0], " "); } }
   const d = s.match(new RegExp("\\b" + NUM + "\\s*(?:days?|din)\\b", "i"));
   if (d && (toNum(d[1]) === 1 || toNum(d[1]) === 2)) { out.stay = toNum(d[1]) === 1 ? "1 day" : "2 days"; s = s.replace(d[0], " "); }
   for (const [g, rx] of GROUP_RX) { const gm = s.match(rx); if (gm) { out.relation = g; s = s.replace(gm[0], " "); break; } }
   let name = s.replace(/\b(?:name|naam|change|update|set|make|to|is|and|with|related)\b/gi, " ")
               .replace(/[,;:.]+/g, " ").replace(/\s+/g, " ").trim();
   if (/[\p{L}]/u.test(name)) out.name = name;
-  if (out.action === "update" && !("name" in out) && !("persons" in out) && !("rooms" in out) && !("relation" in out) && !("hotel" in out) && !("stay" in out) && !("roomNo" in out))
-    return { error: "I found serial no " + out.sn + " but nothing to change. Add a name, persons, rooms, a group, a hotel, days of stay or a room number." };
+  if (out.action === "update" && !("name" in out) && !("persons" in out) && !("rooms" in out) && !("relation" in out) && !("hotel" in out) && !("stay" in out) && !("roomNo" in out) && !("attend" in out))
+    return { error: "I found serial no " + out.sn + " but nothing to change. Add a name, persons, rooms, a group, which day they come, a hotel, days of stay or a room number." };
   if (out.action === "add" && !out.name) return { error: "Say the guest's name, for example: add Ramesh Mama, 3 person, relative." };
   return out;
 }
@@ -209,6 +213,7 @@ function describe(c) {
   if (c.hotel) bits.push(c.hotel);
   if (c.stay) bits.push(c.stay);
   if (c.roomNo) bits.push("room no " + c.roomNo);
+  if (c.attend) bits.push("coming " + c.attend);
   return bits.join(", ");
 }
 
@@ -229,13 +234,13 @@ async function runCommand(text) {
       say("Deleted serial no " + c.sn + " (" + g.name + ").", "ok", async () => { await col.doc(docId(c.sn)).set(before); say("Restored serial no " + c.sn + ".", "ok"); });
     } else if (c.action === "add") {
       const sn = guests.reduce((m, x) => Math.max(m, x.sn), 0) + 1;
-      const row = { sn, name: c.name, hindi: "", persons: c.persons ?? null, rooms: c.rooms ?? null, relation: c.relation || "Not decided", hotel: c.hotel || "", stay: c.stay || "", roomNo: c.roomNo || "" };
+      const row = { sn, name: c.name, hindi: "", persons: c.persons ?? null, rooms: c.rooms ?? null, relation: c.relation || "Not decided", hotel: c.hotel || "", stay: c.stay || "", roomNo: c.roomNo || "", attend: c.attend || "" };
       await col.doc(docId(sn)).set(row); flashSn = sn;
       say("Added serial no " + sn + ": " + describe(row) + ".", "ok", async () => { await col.doc(docId(sn)).delete(); say("Removed serial no " + sn + ".", "ok"); });
     } else {
       const g = guests.find(x => x.sn === c.sn);
       if (!g) return say("There's no serial no " + c.sn + ". To make a new row, start with \"add\".", "err");
-      const before = { name: g.name, hindi: g.hindi || "", persons: g.persons ?? null, rooms: g.rooms ?? null, relation: g.relation, hotel: g.hotel || "", stay: g.stay || "", roomNo: g.roomNo || "" };
+      const before = { name: g.name, hindi: g.hindi || "", persons: g.persons ?? null, rooms: g.rooms ?? null, relation: g.relation, hotel: g.hotel || "", stay: g.stay || "", roomNo: g.roomNo || "", attend: g.attend || "" };
       const patch = {};
       if (c.name) { patch.name = c.name; patch.hindi = ""; }
       if (c.persons != null) patch.persons = c.persons;
@@ -244,6 +249,7 @@ async function runCommand(text) {
       if (c.hotel) patch.hotel = c.hotel;
       if (c.stay) patch.stay = c.stay;
       if (c.roomNo) patch.roomNo = c.roomNo;
+      if (c.attend) patch.attend = c.attend;
       await col.doc(docId(c.sn)).update(patch); flashSn = c.sn;
       say("Serial no " + c.sn + " updated: " + describe(c) + ".", "ok", async () => { await col.doc(docId(c.sn)).update(before); say("Undid the change to serial no " + c.sn + ".", "ok"); });
     }
@@ -290,7 +296,7 @@ function renderRows() {
   const tb = $("rows"); tb.textContent = "";
   const list = visibleGuests();
   if (!list.length) {
-    tb.innerHTML = '<tr><td colspan="9" class="empty"></td></tr>';
+    tb.innerHTML = '<tr><td colspan="10" class="empty"></td></tr>';
     tb.querySelector("td").textContent = guests.length ? "No guests match this filter." : "No guests yet. Type \"add\" and a name above to add the first one.";
     return;
   }
@@ -301,7 +307,8 @@ function renderRows() {
       '<td class="num"><input type="number" min="0" inputmode="numeric" aria-label="Persons"></td>' +
       '<td class="num"><input type="number" min="0" inputmode="numeric" aria-label="Rooms"></td>' +
       '<td class="rel"><select aria-label="Related to"></select></td>' +
-      '<td class="stay"><select aria-label="Hotel"><option value="">—</option><option>Hotel 1</option><option>Hotel 2</option><option>No hotel</option></select></td>' +
+      '<td class="stay"><select aria-label="Coming on" class="att"><option value="">—</option><option>Day 1</option><option>Day 2</option><option>Both days</option></select></td>' +
+      '<td class="stay"><select aria-label="Hotel"><option value="">—</option><option>Hotel 1</option><option>Hotel 2</option><option value="No hotel">Local – no room</option></select></td>' +
       '<td class="stay"><select aria-label="Days of stay"><option value="">—</option><option>1 day</option><option>2 days</option></select></td>' +
       '<td class="rno"><input aria-label="Room number" placeholder="—"></td>' +
       '<td class="act"><button type="button" title="Delete row" aria-label="Delete row">×</button></td>';
@@ -324,7 +331,8 @@ function renderRows() {
     pe.onchange = () => save({ persons: pe.value === "" ? null : Math.max(0, parseInt(pe.value, 10) || 0) });
     ro.onchange = () => save({ rooms: ro.value === "" ? null : Math.max(0, parseInt(ro.value, 10) || 0) });
     sel.onchange = () => save({ relation: sel.value });
-    const [hs, ds] = tr.querySelectorAll(".stay select");
+    const [as, hs, ds] = tr.querySelectorAll(".stay select");
+    as.id = "attend-" + g.sn; as.value = g.attend || ""; as.onchange = () => save({ attend: as.value });
     hs.id = "hotel-" + g.sn; ds.id = "stay-" + g.sn;
     hs.value = g.hotel || ""; ds.value = g.stay || "";
     hs.onchange = () => save({ hotel: hs.value });
@@ -362,6 +370,14 @@ function renderHotels() {
     d.querySelector(".m").textContent = st.persons + " persons · 2 days: " + st.two + " rooms, 1 day: " + st.one + " rooms";
     box.append(d);
   }
+  const day = n => guests.filter(x => x.attend === "Day " + n || x.attend === "Both days").reduce((a, x) => a + (+x.persons || 0), 0);
+  const local = guests.filter(x => x.hotel === "No hotel").reduce((a, x) => a + (+x.persons || 0), 0);
+  const unmarked = guests.filter(x => !x.attend).length;
+  const d = document.createElement("div"); d.className = "hotel";
+  d.innerHTML = "<b>Coming</b> · <span class='n'></span> · <span class='m'></span>";
+  d.querySelector(".n").textContent = "Day 1: " + day(1) + " persons, Day 2: " + day(2) + " persons";
+  d.querySelector(".m").textContent = "Local: " + local + " persons" + (unmarked ? " · " + unmarked + " entries not marked" : "");
+  box.append(d);
 }
 
 /* ---------- read aloud ---------- */
@@ -401,7 +417,7 @@ function guestSpeech() {
     const [p, r] = sum(list);
     return list.length + (list.length === 1 ? " entry" : " entries") + (filter ? " in " + filter : "") + ", " + p + " persons, " + r + " rooms. " +
       list.map(g => "Serial " + g.sn + ", " + spokenName(g.name) + ", " + (g.persons == null ? "count not given" : g.persons + (g.persons === 1 ? " person" : " persons")) +
-        (g.rooms ? ", " + g.rooms + (g.rooms === 1 ? " room" : " rooms") : "") + ", " + (g.relation || "Not decided") + (g.hotel ? ", " + g.hotel : "") + (g.stay ? ", " + g.stay : "") + (g.roomNo ? ", room number " + g.roomNo : "") + ".").join(" ");
+        (g.rooms ? ", " + g.rooms + (g.rooms === 1 ? " room" : " rooms") : "") + ", " + (g.relation || "Not decided") + (g.hotel ? ", " + (g.hotel === "No hotel" ? "local, no room" : g.hotel) : "") + (g.stay ? ", " + g.stay : "") + (g.roomNo ? ", room number " + g.roomNo : "") + (g.attend ? ", coming " + g.attend : "") + ".").join(" ");
   }
   const [p, r] = sum(guests), unknown = guests.filter(x => x.persons == null).length;
   let t = "Guest list. " + guests.length + " entries, " + p + " persons, " + r + " rooms. ";
@@ -410,6 +426,8 @@ function guestSpeech() {
     const [gp, grr] = sum(l); t += gr.key + ": " + gp + " persons in " + l.length + " entries" + (grr ? ", " + grr + " rooms" : "") + ". ";
   }
   for (const name of Object.keys(BOOKED)) { const st = hotelStats(name); t += name + ": " + st.rooms + " of " + BOOKED[name] + " rooms given. "; }
+  const dayP = n => guests.filter(x => x.attend === "Day " + n || x.attend === "Both days").reduce((a, x) => a + (+x.persons || 0), 0);
+  t += "Coming on day 1: " + dayP(1) + " persons. Day 2: " + dayP(2) + " persons. ";
   if (unknown) t += unknown + " entries still need a head count.";
   return t;
 }
@@ -422,7 +440,7 @@ $("addBtn").addEventListener("click", () => { const i = $("cmdInput"); i.value =
   const db = window.claude ? await window.claude.use("db") : null;
   if (!db) {
     $("sub").textContent = "Sign in to claude.ai to see and edit the guest list.";
-    $("rows").innerHTML = '<tr><td colspan="9" class="empty">The guest list loads once you are signed in.</td></tr>';
+    $("rows").innerHTML = '<tr><td colspan="10" class="empty">The guest list loads once you are signed in.</td></tr>';
     return;
   }
   col = db.collection("guests");
