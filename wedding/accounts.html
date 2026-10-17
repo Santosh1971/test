@@ -82,6 +82,7 @@ td.cat { font-size: .82rem; color: var(--muted); }
 .pill { display: inline-block; font-size: .72rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; letter-spacing: .03em; }
 .pill.in { color: var(--in); border: 1px solid var(--in); }
 .pill.out { color: var(--out); border: 1px solid var(--out); }
+.pill.due { color: var(--due); border: 1px solid var(--due); }
 .pill.done { color: var(--in); background: transparent; }
 td.due { color: var(--due); font-weight: 700; }
 td.act button { padding: 2px 8px; background: transparent; color: var(--muted); font-size: 1.05rem; line-height: 1; }
@@ -123,6 +124,7 @@ td.act button:hover { color: var(--out); border-color: var(--line); }
           <label>Type<select id="f-type">
             <option value="out">Payment (money spent)</option>
             <option value="in">Money in (someone gave money)</option>
+            <option value="promised">Money promised (will give later)</option>
             <option value="item">New expense item (agreed amount)</option>
           </select></label>
           <label>Date<input id="f-date" type="date"></label>
@@ -178,11 +180,12 @@ const say = (t, k) => { const m = $("msg"); m.className = "msg " + (k || ""); m.
 /* ---------- derived numbers ---------- */
 function compute() {
   const paidByItem = {};
-  let tin = 0, tout = 0;
+  let tin = 0, tout = 0, tplan = 0;
   const people = {};
-  const P = n => { const k = titleCase(n || "Not given"); return people[k] ??= { name: k, gave: 0, received: 0, paid: 0 }; };
+  const P = n => { const k = titleCase(n || "Payer not given"); return people[k] ??= { name: k, gave: 0, received: 0, paid: 0 }; };
   for (const t of txns) {
     const a = +t.amount || 0;
+    if (t.type === "in" && t.planned) { tplan += a; continue; }
     if (t.type === "in") { tin += a; if (t.from) P(t.from).gave += a; P(t.by).received += a; }
     else { tout += a; P(t.by).paid += a; const k = t.itemId || slug(t.item); paidByItem[k] = (paidByItem[k] || 0) + a; }
   }
@@ -196,7 +199,7 @@ function compute() {
     const t = txns.find(x => (x.itemId || slug(x.item)) === k);
     rows.push({ id: k, name: t ? t.item : k, category: t?.category || "Other", manager: "", paid: paidByItem[k], bal: 0, ag: 0, orphan: true });
   }
-  return { tin, tout, agreed, due, rows, people: Object.values(people) };
+  return { tin, tout, tplan, agreed, due, rows, people: Object.values(people) };
 }
 
 /* ---------- render ---------- */
@@ -218,7 +221,8 @@ function render() {
     fig("Money put in", inr(c.tin), "all contributions so far", "", "in"),
     fig("Spent so far", inr(c.tout), "all payments so far", "", "out"),
     fig("Money in hand", inr(c.tin - c.tout), c.tin - c.tout < 0 ? "spent more than put in" : "put in minus spent"),
-    fig("Still needed", inr(Math.max(c.due - (c.tin - c.tout), 0)), "balance to give minus money in hand"),
+    fig("Money still to come", inr(c.tplan), "promised, not yet received"),
+    fig("Still to arrange", inr(Math.max(c.due - (c.tin - c.tout) - c.tplan, 0)), "balance to give minus money in hand and money to come", c.due - (c.tin - c.tout) - c.tplan > 0 ? "due" : ""),
   );
 
   const pe = $("people"); pe.textContent = "";
@@ -267,18 +271,20 @@ function render() {
     tr.innerHTML = '<td class="num"></td><td></td><td></td><td></td><td></td><td class="r"></td><td class="act"><button type="button" title="Delete entry" aria-label="Delete entry">×</button></td>';
     const x = tr.children;
     x[0].textContent = fmtDate(t.date);
-    x[1].innerHTML = t.type === "in" ? '<span class="pill in">Money in</span>' : '<span class="pill out">Payment</span>';
+    x[1].innerHTML = t.type === "in" ? (t.planned ? '<span class="pill due">Promised</span>' : '<span class="pill in">Money in</span>') : '<span class="pill out">Payment</span>';
+    if (t.planned) { const mb = document.createElement("button"); mb.type = "button"; mb.className = "btn-ghost"; mb.style.cssText = "display:block;margin-top:4px;padding:2px 8px;font-size:.8rem"; mb.textContent = "Mark received";
+      mb.onclick = () => db.collection("txns").doc(t.id).update({ planned: false, date: today() }).then(() => say("Marked as received today.", "ok")).catch(e => say(errText(e), "err")); x[1].append(mb); }
     x[2].textContent = t.type === "in" ? ("From " + (t.from || "—")) + (t.note ? " · " + t.note : "") : (t.item || "—") + (t.note ? " · " + t.note : "");
     x[3].textContent = t.type === "in" ? (t.by ? "to " + t.by : "—") : (t.by || "—");
     x[4].textContent = t.mode || "";
     x[5].textContent = (t.type === "in" ? "+" : "−") + inr(t.amount);
-    x[5].style.color = t.type === "in" ? "var(--in)" : "var(--out)";
+    x[5].style.color = t.type === "in" ? (t.planned ? "var(--due)" : "var(--in)") : "var(--out)";
     const b = x[6].querySelector("button"); b.onclick = () => confirmDelete(b, () => db.collection("txns").doc(t.id).delete());
     tb.append(tr);
   }
 
   $("itemList").innerHTML = ""; c.rows.forEach(r => { const o = document.createElement("option"); o.value = r.name; $("itemList").append(o); });
-  $("peopleList").innerHTML = ""; [...new Set(["Santosh", "Anupama", ...c.people.map(p => p.name)])].filter(n => n !== "Not Given")
+  $("peopleList").innerHTML = ""; [...new Set(["Santosh", "Anupama", ...c.people.map(p => p.name)])].filter(n => n !== "Payer Not Given")
     .forEach(n => { const o = document.createElement("option"); o.value = n; $("peopleList").append(o); });
 }
 
@@ -301,7 +307,7 @@ async function saveAction(a) {
   }
   const id = "t" + created + Math.random().toString(36).slice(2, 6);
   const base = { id, type: a.action === "in" ? "in" : "out", date: a.date || today(), amount: Math.round(+a.amount || 0), by: titleCase(a.by), mode: a.mode || "", note: a.note || "", created };
-  if (base.type === "in") base.from = titleCase(a.from);
+  if (base.type === "in") { base.from = titleCase(a.from); base.planned = !!a.planned; }
   else {
     const name = titleCase(a.item || "Other"); const iid = slug(name);
     let it = items.find(i => i.id === iid);
@@ -314,7 +320,7 @@ async function saveAction(a) {
 
 function describe(a) {
   if (a.action === "item") return "New/updated expense item: " + titleCase(a.item) + (a.amount ? ", agreed " + inr(a.amount) : "") + (a.by ? ", managed by " + titleCase(a.by) : "") + (a.category ? " [" + a.category + "]" : "");
-  if (a.action === "in") return "Money in: " + inr(a.amount) + " from " + (titleCase(a.from) || "?") + " to " + (titleCase(a.by) || "?") + (a.mode ? " by " + a.mode : "") + " on " + fmtDate(a.date || today());
+  if (a.action === "in") return (a.planned ? "Money promised (still to come): " : "Money in: ") + inr(a.amount) + " from " + (titleCase(a.from) || "?") + " to " + (titleCase(a.by) || "?") + (a.mode ? " by " + a.mode : "") + " on " + fmtDate(a.date || today());
   return "Payment: " + inr(a.amount) + " for " + (titleCase(a.item) || "?") + (a.by ? ", paid by " + titleCase(a.by) : "") + (a.mode ? ", " + a.mode : "") + " on " + fmtDate(a.date || today()) + (a.note ? " (" + a.note + ")" : "");
 }
 
@@ -329,7 +335,7 @@ Categories (pick one): ${JSON.stringify(CATS)}
 Return {"actions":[...]} where each action is one of:
 - {"action":"item","item":name,"amount":total agreed/estimated rupees or null,"by":who manages it or "","category":one category,"note":""}  (a vendor/expense head and its agreed total, no money moving yet)
 - {"action":"out","item":expense item name (reuse a known one when it matches),"amount":rupees,"by":who paid,"mode":"Cash"|"UPI"|"Bank transfer"|"Card"|"Cheque"|"","date":"YYYY-MM-DD","category":one category,"note":"e.g. advance, vendor name"}
-- {"action":"in","amount":rupees,"from":who gave the money,"by":who received it to manage (same as from if they keep it),"mode":"","date":"YYYY-MM-DD","note":""}
+- {"action":"in","amount":rupees,"from":who gave the money,"by":who received it to manage (same as from if they keep it),"mode":"","date":"YYYY-MM-DD","note":"","planned":true if the money is only promised or will be given later ("has to give", "will give", "dega"), else false}
 Rules: 1 lakh = 100000, 1 crore = 10000000, "50k" = 50000. If a payment mentions an agreed total too, emit both an item action and an out action. Dates without a year are this year. Never invent amounts; if no amount is given for a payment, return {"actions":[],"question":"short question"}. Input may be Hindi or Hinglish.
 Note: ${text}`;
   try {
@@ -356,8 +362,9 @@ CATS.forEach(c => { const o = document.createElement("option"); o.textContent = 
 $("f-date").value = today();
 function syncForm() {
   const t = $("f-type").value;
-  $("l-from").hidden = t !== "in"; $("l-item").hidden = t === "in"; $("l-cat").hidden = t === "in"; $("l-mode").hidden = t === "item";
-  $("byLabel").textContent = t === "in" ? "Given to (who manages it)" : t === "item" ? "Managed by" : "Paid by";
+  const isIn = t === "in" || t === "promised";
+  $("l-from").hidden = !isIn; $("l-item").hidden = isIn; $("l-cat").hidden = isIn; $("l-mode").hidden = t === "item";
+  $("byLabel").textContent = isIn ? "Given to (who manages it)" : t === "item" ? "Managed by" : "Paid by";
 }
 $("f-type").onchange = syncForm; syncForm();
 $("manual").addEventListener("submit", async e => {
@@ -365,9 +372,9 @@ $("manual").addEventListener("submit", async e => {
   if (!db) return say("The accounts aren't connected yet. Sign in to claude.ai and reload.", "err");
   const t = $("f-type").value, amount = +$("f-amount").value;
   if (t !== "item" && !(amount > 0)) return say("Enter the amount in rupees.", "err");
-  if (t !== "in" && !$("f-item").value.trim()) return say("Enter the expense item, for example Catering.", "err");
+  if (t !== "in" && t !== "promised" && !$("f-item").value.trim()) return say("Enter the expense item, for example Catering.", "err");
   try {
-    const msg = await saveAction({ action: t, amount: amount || null, date: $("f-date").value, item: $("f-item").value, category: $("f-cat").value, from: $("f-from").value, by: $("f-by").value, mode: $("f-mode").value, note: $("f-note").value });
+    const msg = await saveAction({ action: t === "promised" ? "in" : t, planned: t === "promised", amount: amount || null, date: $("f-date").value, item: $("f-item").value, category: $("f-cat").value, from: $("f-from").value, by: $("f-by").value, mode: $("f-mode").value, note: $("f-note").value });
     say(msg, "ok"); ["f-amount", "f-item", "f-from", "f-note"].forEach(i => $(i).value = "");
   } catch (err) { say(errText(err), "err"); }
 });
@@ -414,7 +421,7 @@ function accountsSpeech() {
   }
   if (!txns.length && !items.length) return "No entries yet in the wedding accounts.";
   let s = "Wedding accounts. Balance still to give, " + spokenINR(c.due) + ". Money put in, " + spokenINR(c.tin) + ". Spent so far, " + spokenINR(c.tout) +
-    ". Money in hand, " + spokenINR(c.tin - c.tout) + ". Still needed, " + spokenINR(Math.max(c.due - (c.tin - c.tout), 0)) + ". ";
+    ". Money in hand, " + spokenINR(c.tin - c.tout) + ". Money still to come, " + spokenINR(c.tplan) + ". Still to arrange, " + spokenINR(Math.max(c.due - (c.tin - c.tout) - c.tplan, 0)) + ". ";
   const due = c.rows.filter(r => r.bal > 0).sort((a, b) => b.bal - a.bal);
   if (due.length) s += "Still to pay. " + due.map(r => spokenName(r.name) + ", " + spokenINR(r.bal) + " left of " + spokenINR(r.ag) + (r.manager ? ", managed by " + r.manager : "") + ".").join(" ") + " ";
   const holders = c.people.filter(p => p.received || p.paid);
