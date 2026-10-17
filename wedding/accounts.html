@@ -71,7 +71,7 @@ details.form summary { cursor: pointer; font-weight: 500; color: var(--accent); 
 
 /* tables */
 .tablebox { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
-table { width: 100%; border-collapse: collapse; min-width: 640px; }
+table { width: 100%; border-collapse: collapse; min-width: 860px; }
 th { text-align: left; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 10px; border-bottom: 2px solid var(--line); white-space: nowrap; }
 td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
 tr:last-child td { border-bottom: 0; }
@@ -85,6 +85,16 @@ td.cat { font-size: .82rem; color: var(--muted); }
 .pill.due { color: var(--due); border: 1px solid var(--due); }
 .pill.done { color: var(--in); background: transparent; }
 td.due { color: var(--due); font-weight: 700; }
+td .cell { font: inherit; color: var(--fg); background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 5px 6px; width: 100%; box-sizing: border-box; min-width: 0; }
+td .cell:hover { border-color: var(--line); }
+td .cell:focus { border-color: var(--gold); background: var(--bg); outline: none; box-shadow: none; }
+td .cell.small { font-size: .82rem; color: var(--muted); padding-block: 2px; }
+td.r .cell { text-align: right; font-variant-numeric: tabular-nums; }
+td.am .cell { font-weight: 700; }
+td.it { min-width: 200px; } td.dt { width: 140px; } td.ty { width: 120px; } td.md { width: 130px; } td.det { min-width: 180px; }
+td.ty .cell { font-weight: 700; font-size: .85rem; }
+.kind-out { color: var(--out) !important; } .kind-in { color: var(--in) !important; } .kind-promised { color: var(--due) !important; }
+.btn-ghost.mark { display: block; margin-top: 4px; padding: 2px 8px; font-size: .8rem; }
 td.act button { padding: 2px 8px; background: transparent; color: var(--muted); font-size: 1.05rem; line-height: 1; }
 td.act button:hover { color: var(--out); border-color: var(--line); }
 .empty { padding: 24px 16px; text-align: center; color: var(--muted); }
@@ -241,44 +251,92 @@ function render() {
 
   const ib = $("items"); ib.textContent = "";
   const rows = c.rows.sort((a, b) => b.bal - a.bal || (b.ag + b.paid) - (a.ag + a.paid));
-  $("itemsHint").textContent = rows.length ? rows.filter(r => r.bal > 0).length + " items with money still due" : "";
+  $("itemsHint").textContent = rows.length ? rows.filter(r => r.bal > 0).length + " items with money still due · tap any cell to edit" : "";
   if (!rows.length) ib.innerHTML = '<tr><td colspan="6" class="empty">No expense items yet. Add one like “Caterer total agreed 3.5 lakh, Santosh managing”.</td></tr>';
   for (const r of rows) {
     const tr = document.createElement("tr");
-    tr.innerHTML = '<td><div class="nm"></div><div class="cat"></div><div class="bar"><i></i></div></td><td></td><td class="r"></td><td class="r"></td><td class="r"></td><td class="act"></td>';
+    tr.innerHTML = '<td class="it"></td><td></td><td class="r"></td><td class="r"></td><td class="r"></td><td class="act"></td>';
     const t = tr.children;
-    t[0].querySelector(".nm").textContent = r.name;
-    t[0].querySelector(".cat").textContent = (r.category || "Other") + (r.note ? " · " + r.note : "");
-    t[0].querySelector(".bar i").style.width = r.ag ? Math.min(100, r.paid / r.ag * 100) + "%" : "0";
-    if (!r.ag) t[0].querySelector(".bar").hidden = true;
-    t[1].textContent = r.manager || "—";
-    t[2].textContent = r.ag ? inr(r.ag) : "not set";
+    if (r.orphan) {
+      t[0].innerHTML = '<div class="nm"></div><div class="cat"></div>';
+      t[0].querySelector(".nm").textContent = r.name; t[0].querySelector(".cat").textContent = r.category || "Other";
+      t[1].textContent = "—"; t[2].textContent = "not set";
+    } else {
+      const nm = cell("input", "item-name-" + r.id, "Item name", r.name);
+      nm.onchange = () => renameItem(r, nm.value);
+      const cat = cell("select", "item-cat-" + r.id, "Category"); cat.classList.add("small");
+      CATS.forEach(k => { const o = document.createElement("option"); o.textContent = k; cat.append(o); });
+      if (r.category && !CATS.includes(r.category)) { const o = document.createElement("option"); o.textContent = r.category; cat.append(o); }
+      cat.value = r.category || "Other";
+      cat.onchange = () => upd("items", r.id, { category: cat.value }, r.name);
+      const note = cell("input", "item-note-" + r.id, "Note", r.note || ""); note.classList.add("small"); note.placeholder = "Add a note";
+      note.onchange = () => upd("items", r.id, { note: note.value.trim() }, r.name);
+      t[0].append(nm, cat, note);
+      const bar = document.createElement("div"); bar.className = "bar"; bar.innerHTML = "<i></i>"; bar.querySelector("i").style.width = r.ag ? Math.min(100, r.paid / r.ag * 100) + "%" : "0"; bar.hidden = !r.ag; t[0].append(bar);
+      const mg = cell("input", "item-mgr-" + r.id, "Managed by", r.manager || ""); mg.setAttribute("list", "peopleList"); mg.placeholder = "—";
+      mg.onchange = () => upd("items", r.id, { manager: titleCase(mg.value) }, r.name);
+      t[1].append(mg);
+      const ag = cell("input", "item-agreed-" + r.id, "Agreed amount", r.ag ? r.ag.toLocaleString("en-IN") : ""); ag.inputMode = "decimal"; ag.placeholder = "not set";
+      ag.onchange = () => { const v = parseAmt(ag.value); if (v === undefined) { say("Enter the agreed amount as a number, like 350000 or 3.5 lakh.", "err"); return; } upd("items", r.id, { agreed: v }, r.name); };
+      t[2].append(ag);
+      const b = document.createElement("button"); b.type = "button"; b.textContent = "×"; b.title = "Delete item"; b.setAttribute("aria-label", "Delete item " + r.name);
+      b.onclick = () => confirmDelete(b, () => db.collection("items").doc(r.id).delete()); t[5].append(b);
+    }
     t[3].textContent = inr(r.paid);
     if (r.ag && r.bal === 0) { t[4].innerHTML = '<span class="pill done">Fully paid</span>'; }
     else { t[4].textContent = r.ag ? inr(r.bal) : "—"; if (r.bal) t[4].classList.add("due"); }
-    if (!r.orphan) { const b = document.createElement("button"); b.type = "button"; b.textContent = "×"; b.title = "Delete item"; b.setAttribute("aria-label", "Delete item " + r.name);
-      b.onclick = () => confirmDelete(b, () => db.collection("items").doc(r.id).delete()); t[5].append(b); }
     ib.append(tr);
   }
 
   const tb = $("txns"); tb.textContent = "";
   const q = query.toLowerCase();
+  const itemName = t => (items.find(i => i.id === t.itemId) || {}).name || t.item || "";
   const list = [...txns].sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.created || 0) - (a.created || 0))
-    .filter(t => !q || [t.item, t.from, t.by, t.note, t.mode, t.category].join(" ").toLowerCase().includes(q));
+    .filter(t => !q || [itemName(t), t.from, t.by, t.note, t.mode, t.category].join(" ").toLowerCase().includes(q));
   if (!list.length) tb.innerHTML = '<tr><td colspan="7" class="empty"></td></tr>', tb.querySelector("td").textContent = txns.length ? "No entries match your search." : "No money in or payments yet.";
   for (const t of list) {
     const tr = document.createElement("tr");
-    tr.innerHTML = '<td class="num"></td><td></td><td></td><td></td><td></td><td class="r"></td><td class="act"><button type="button" title="Delete entry" aria-label="Delete entry">×</button></td>';
-    const x = tr.children;
-    x[0].textContent = fmtDate(t.date);
-    x[1].innerHTML = t.type === "in" ? (t.planned ? '<span class="pill due">Promised</span>' : '<span class="pill in">Money in</span>') : '<span class="pill out">Payment</span>';
-    if (t.planned) { const mb = document.createElement("button"); mb.type = "button"; mb.className = "btn-ghost"; mb.style.cssText = "display:block;margin-top:4px;padding:2px 8px;font-size:.8rem"; mb.textContent = "Mark received";
+    tr.innerHTML = '<td class="dt"></td><td class="ty"></td><td class="det"></td><td></td><td class="md"></td><td class="r am"></td><td class="act"><button type="button" title="Delete entry" aria-label="Delete entry">×</button></td>';
+    const x = tr.children, label = "Entry";
+    const dt = cell("input", "tx-date-" + t.id, "Date", t.date || ""); dt.type = "date";
+    dt.onchange = () => upd("txns", t.id, { date: dt.value }, label); x[0].append(dt);
+    const ty = cell("select", "tx-type-" + t.id, "Type");
+    [["out", "Payment"], ["in", "Money in"], ["promised", "Promised"]].forEach(([v, l]) => { const o = document.createElement("option"); o.value = v; o.textContent = l; ty.append(o); });
+    ty.value = t.type === "in" ? (t.planned ? "promised" : "in") : "out";
+    ty.classList.add("kind-" + ty.value);
+    ty.onchange = () => {
+      const v = ty.value;
+      const patch = v === "out" ? { type: "out", planned: false } : { type: "in", planned: v === "promised" };
+      if (v === "out" && !t.itemId) { const first = items[0]; if (first) Object.assign(patch, { itemId: first.id, item: first.name, category: first.category }); }
+      upd("txns", t.id, patch, label);
+    };
+    x[1].append(ty);
+    if (t.planned) { const mb = document.createElement("button"); mb.type = "button"; mb.className = "btn-ghost mark"; mb.textContent = "Mark received";
       mb.onclick = () => db.collection("txns").doc(t.id).update({ planned: false, date: today() }).then(() => say("Marked as received today.", "ok")).catch(e => say(errText(e), "err")); x[1].append(mb); }
-    x[2].textContent = t.type === "in" ? ("From " + (t.from || "—")) + (t.note ? " · " + t.note : "") : (t.item || "—") + (t.note ? " · " + t.note : "");
-    x[3].textContent = t.type === "in" ? (t.by ? "to " + t.by : "—") : (t.by || "—");
-    x[4].textContent = t.mode || "";
-    x[5].textContent = (t.type === "in" ? "+" : "−") + inr(t.amount);
-    x[5].style.color = t.type === "in" ? (t.planned ? "var(--due)" : "var(--in)") : "var(--out)";
+    if (t.type === "in") {
+      const fr = cell("input", "tx-from-" + t.id, "Money given by", t.from || ""); fr.setAttribute("list", "peopleList"); fr.placeholder = "From whom";
+      fr.onchange = () => upd("txns", t.id, { from: titleCase(fr.value) }, label); x[2].append(fr);
+    } else {
+      const it = cell("select", "tx-item-" + t.id, "Expense item");
+      const opts = [...items].sort((a, b) => a.name.localeCompare(b.name));
+      if (t.itemId && !opts.find(i => i.id === t.itemId)) opts.unshift({ id: t.itemId, name: t.item || t.itemId });
+      opts.forEach(i => { const o = document.createElement("option"); o.value = i.id; o.textContent = i.name; it.append(o); });
+      it.value = t.itemId || "";
+      it.onchange = () => { const i = items.find(z => z.id === it.value); if (i) upd("txns", t.id, { itemId: i.id, item: i.name, category: i.category || "Other" }, label); };
+      x[2].append(it);
+    }
+    const nt = cell("input", "tx-note-" + t.id, "Note", t.note || ""); nt.classList.add("small"); nt.placeholder = "Add a note";
+    nt.onchange = () => upd("txns", t.id, { note: nt.value.trim() }, label); x[2].append(nt);
+    const by = cell("input", "tx-by-" + t.id, t.type === "in" ? "Given to" : "Paid by", t.by || ""); by.setAttribute("list", "peopleList"); by.placeholder = t.type === "in" ? "Given to" : "Paid by";
+    by.onchange = () => upd("txns", t.id, { by: titleCase(by.value) }, label); x[3].append(by);
+    const md = cell("select", "tx-mode-" + t.id, "Mode");
+    ["", "Cash", "UPI", "Bank transfer", "Card", "Cheque"].forEach(m => { const o = document.createElement("option"); o.value = m; o.textContent = m || "—"; md.append(o); });
+    if (t.mode && ![...md.options].some(o => o.value === t.mode)) { const o = document.createElement("option"); o.textContent = t.mode; md.append(o); }
+    md.value = t.mode || ""; md.onchange = () => upd("txns", t.id, { mode: md.value }, label); x[4].append(md);
+    const am = cell("input", "tx-amt-" + t.id, "Amount", (+t.amount || 0).toLocaleString("en-IN")); am.inputMode = "decimal";
+    am.style.color = t.type === "in" ? (t.planned ? "var(--due)" : "var(--in)") : "var(--out)";
+    am.onchange = () => { const v = parseAmt(am.value); if (!v) { say("Enter the amount as a number, like 50000 or 1.5 lakh.", "err"); return; } upd("txns", t.id, { amount: v }, label); };
+    x[5].append(am);
     const b = x[6].querySelector("button"); b.onclick = () => confirmDelete(b, () => db.collection("txns").doc(t.id).delete());
     tb.append(tr);
   }
@@ -287,6 +345,40 @@ function render() {
   $("peopleList").innerHTML = ""; [...new Set(["Santosh", "Anupama", ...c.people.map(p => p.name)])].filter(n => n !== "Payer Not Given")
     .forEach(n => { const o = document.createElement("option"); o.value = n; $("peopleList").append(o); });
 }
+
+function cell(tag, id, label, value) {
+  const el = document.createElement(tag); el.className = "cell"; el.id = id; el.setAttribute("aria-label", label);
+  if (value !== undefined && tag === "input") el.value = value;
+  return el;
+}
+function parseAmt(v) {
+  v = String(v || "").toLowerCase().replace(/[₹,\s]|rs\.?|rupees?/g, "");
+  if (!v) return null;
+  const m = v.match(/^(\d+(?:\.\d+)?)(lakhs?|lacs?|l|k|thousand|cr|crores?)?$/);
+  if (!m) return undefined;
+  const mult = !m[2] ? 1 : /^l/.test(m[2]) ? 1e5 : /^c/.test(m[2]) ? 1e7 : 1e3;
+  return Math.round(parseFloat(m[1]) * mult);
+}
+function upd(col, id, patch, label) {
+  return db.collection(col).doc(id).update(patch).then(() => say(label + " saved.", "ok")).catch(e => say(errText(e), "err"));
+}
+async function renameItem(r, value) {
+  const name = titleCase(value); if (!name || name === r.name) return;
+  try {
+    await db.collection("items").doc(r.id).update({ name });
+    for (const t of txns.filter(t => t.itemId === r.id)) await db.collection("txns").doc(t.id).update({ item: name });
+    say("Renamed to " + name + ".", "ok");
+  } catch (e) { say(errText(e), "err"); }
+}
+
+let renderPending = false;
+function safeRender() {
+  if (document.activeElement && document.activeElement.classList.contains("cell")) { renderPending = true; return; }
+  render();
+}
+document.addEventListener("focusout", () => setTimeout(() => {
+  if (renderPending && !(document.activeElement && document.activeElement.classList.contains("cell"))) { renderPending = false; render(); }
+}, 0));
 
 function confirmDelete(btn, run) {
   if (btn.dataset.armed) { run().then(() => say("Deleted.", "ok")).catch(e => say(errText(e), "err")); return; }
@@ -436,8 +528,8 @@ render();
 (async () => {
   db = window.claude ? await window.claude.use("db") : null;
   if (!db) { $("sub").textContent = "Sign in to claude.ai to see and update the accounts."; return; }
-  db.collection("items").onSnapshot(s => { items = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, e => say("Couldn't load items (" + e.message + ").", "err"));
-  db.collection("txns").onSnapshot(s => { txns = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, e => say("Couldn't load entries (" + e.message + ").", "err"));
+  db.collection("items").onSnapshot(s => { items = s.docs.map(d => ({ id: d.id, ...d.data() })); safeRender(); }, e => say("Couldn't load items (" + e.message + ").", "err"));
+  db.collection("txns").onSnapshot(s => { txns = s.docs.map(d => ({ id: d.id, ...d.data() })); safeRender(); }, e => say("Couldn't load entries (" + e.message + ").", "err"));
   sample = await window.claude.use("sample");
   if (!sample) $("nlHint").textContent = "Reading written entries isn't available here; use the form below.";
 })();
