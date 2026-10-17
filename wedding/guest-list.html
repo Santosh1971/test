@@ -65,6 +65,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 
 /* table */
 .tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .tools input { font: inherit; padding: 8px 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); flex: 1 1 200px; min-width: 0; max-width: 340px; }
 .tablebox { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 table { width: 100%; border-collapse: collapse; min-width: 620px; }
@@ -116,7 +117,7 @@ td.act button:hover { color: var(--err); border-color: var(--line); }
   <section style="display:grid;gap:10px">
     <div class="tools">
       <input id="search" type="search" placeholder="Search names" aria-label="Search names">
-      <button class="btn-ghost" id="addBtn" type="button">+ Add guest</button>
+      <span class="row-btns"><button class="btn-ghost" id="speakBtn" type="button" aria-pressed="false">🔊 Read aloud</button> <button class="btn-ghost" id="addBtn" type="button">+ Add guest</button></span>
     </div>
     <div class="tablebox">
       <table>
@@ -250,11 +251,15 @@ function renderTotals() {
   });
 }
 
+function visibleGuests() {
+  const q = query.toLowerCase();
+  return guests.filter(x => (!filter || (x.relation || "Not decided") === filter) &&
+    (!q || (x.name || "").toLowerCase().includes(q) || (x.hindi || "").includes(query) || String(x.sn) === q));
+}
+
 function renderRows() {
   const tb = $("rows"); tb.textContent = "";
-  const q = query.toLowerCase();
-  const list = guests.filter(x => (!filter || (x.relation || "Not decided") === filter) &&
-    (!q || (x.name || "").toLowerCase().includes(q) || (x.hindi || "").includes(query) || String(x.sn) === q));
+  const list = visibleGuests();
   if (!list.length) {
     tb.innerHTML = '<tr><td colspan="6" class="empty"></td></tr>';
     tb.querySelector("td").textContent = guests.length ? "No guests match this filter." : "No guests yet. Type \"add\" and a name above to add the first one.";
@@ -300,6 +305,55 @@ function render() {
   renderTotals(); renderRows();
 }
 
+/* ---------- read aloud ---------- */
+const tts = window.speechSynthesis || null;
+function spokenINR(n) {
+  n = Math.round(+n || 0); if (!n) return "zero rupees";
+  const cr = Math.floor(n / 1e7), l = Math.floor(n % 1e7 / 1e5), t = Math.floor(n % 1e5 / 1e3), r = n % 1000;
+  return [cr && cr + " crore", l && l + " lakh", t && t + " thousand", r && r].filter(Boolean).join(" ") + " rupees";
+}
+const spokenName = s => (s || "").replace(/\?/g, "").replace(/&/g, " and ").replace(/\s*\/\s*/g, " or ").replace(/\s+/g, " ").trim();
+function pickVoice() {
+  const v = tts ? tts.getVoices() : [];
+  return v.find(x => /^en[-_]IN/i.test(x.lang)) || v.find(x => /^hi/i.test(x.lang)) || v.find(x => /^en/i.test(x.lang)) || null;
+}
+function setSpeakBtn(on) { const b = $("speakBtn"); if (b) { b.textContent = on ? "⏹ Stop reading" : "🔊 Read aloud"; b.setAttribute("aria-pressed", on ? "true" : "false"); } }
+function speak(text) {
+  if (!tts || typeof SpeechSynthesisUtterance === "undefined") return say("This phone's browser can't read aloud here.", "err");
+  if (tts.speaking || tts.pending) { tts.cancel(); setSpeakBtn(false); return; }
+  const parts = text.split(/(?<=[.])\s+/).filter(Boolean), voice = pickVoice();
+  parts.forEach((p, i) => {
+    const u = new SpeechSynthesisUtterance(p);
+    if (voice) { u.voice = voice; u.lang = voice.lang; } else u.lang = "en-IN";
+    u.rate = 0.95;
+    if (i === parts.length - 1) u.onend = u.onerror = () => setSpeakBtn(false);
+    tts.speak(u);
+  });
+  setSpeakBtn(true);
+  setTimeout(() => { if (!tts.speaking && !tts.pending) { setSpeakBtn(false); say("No sound? Check the phone's volume and that it isn't on silent.", "err"); } }, 2500);
+}
+if (tts) { tts.getVoices(); tts.onvoiceschanged = () => tts.getVoices(); }
+
+function guestSpeech() {
+  const sum = list => [list.reduce((a, x) => a + (+x.persons || 0), 0), list.reduce((a, x) => a + (+x.rooms || 0), 0)];
+  if (filter || query) {
+    const list = visibleGuests();
+    if (!list.length) return "No guests match this filter.";
+    const [p, r] = sum(list);
+    return list.length + (list.length === 1 ? " entry" : " entries") + (filter ? " in " + filter : "") + ", " + p + " persons, " + r + " rooms. " +
+      list.map(g => "Serial " + g.sn + ", " + spokenName(g.name) + ", " + (g.persons == null ? "count not given" : g.persons + (g.persons === 1 ? " person" : " persons")) +
+        (g.rooms ? ", " + g.rooms + (g.rooms === 1 ? " room" : " rooms") : "") + ", " + (g.relation || "Not decided") + ".").join(" ");
+  }
+  const [p, r] = sum(guests), unknown = guests.filter(x => x.persons == null).length;
+  let t = "Guest list. " + guests.length + " entries, " + p + " persons, " + r + " rooms. ";
+  for (const gr of GROUPS) {
+    const l = guests.filter(x => (x.relation || "Not decided") === gr.key); if (!l.length) continue;
+    const [gp, grr] = sum(l); t += gr.key + ": " + gp + " persons in " + l.length + " entries" + (grr ? ", " + grr + " rooms" : "") + ". ";
+  }
+  if (unknown) t += unknown + " entries still need a head count.";
+  return t;
+}
+$("speakBtn").addEventListener("click", () => speak(guestSpeech()));
 $("cmdForm").addEventListener("submit", e => { e.preventDefault(); const v = $("cmdInput").value.trim(); if (v) runCommand(v); });
 $("search").addEventListener("input", e => { query = e.target.value.trim(); renderRows(); });
 $("addBtn").addEventListener("click", () => { const i = $("cmdInput"); i.value = "add "; i.focus(); });
