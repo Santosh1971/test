@@ -1,0 +1,385 @@
+<title>Pratyakcha Wedding Accounts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Mukta:wght@400;500;700&display=swap">
+<style>
+/* Layout: one column ledger. Summary figures, an entry box, then items (what we owe), money in, and the day book. */
+:root {
+  --bg: #f7f8f6;
+  --surface: #ffffff;
+  --fg: #1d2420;
+  --muted: #65706a;
+  --line: #dfe4e0;
+  --accent: #8a1c3c;
+  --gold: #c98a0c;
+  --gold-soft: #fbf1db;
+  --in: #23784a;
+  --out: #b03a2e;
+  --due: #a8560a;
+  --display: "Tiro Devanagari Hindi", Georgia, serif;
+  --body: "Mukta", "Noto Sans Devanagari", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141816; --surface: #1d2320; --fg: #eef2ef; --muted: #a3ada7; --line: #333c37;
+  --accent: #ea86a4; --gold: #f0b94e; --gold-soft: #3a2f16; --in: #6fd19a; --out: #ff8f80; --due: #f5ac62;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141816; --surface: #1d2320; --fg: #eef2ef; --muted: #a3ada7; --line: #333c37;
+  --accent: #ea86a4; --gold: #f0b94e; --gold-soft: #3a2f16; --in: #6fd19a; --out: #ff8f80; --due: #f5ac62;
+  color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.45; }
+.wrap { max-width: 1000px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 64px; display: grid; gap: 26px; }
+h1 { font-family: var(--display); font-weight: 400; color: var(--accent); font-size: clamp(1.7rem, 5vw, 2.4rem); margin: 0; line-height: 1.15; text-wrap: balance; }
+h2 { font-size: 1.15rem; margin: 0; text-wrap: balance; }
+.eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: .72rem; font-weight: 700; color: var(--gold); }
+.muted { color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+section { display: grid; gap: 10px; min-width: 0; }
+.sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+
+/* summary */
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.fig { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 2px; }
+.fig .l { font-size: .82rem; color: var(--muted); font-weight: 500; }
+.fig .v { font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.fig .s { font-size: .8rem; color: var(--muted); }
+.fig.due { border-color: var(--due); background: var(--gold-soft); }
+.fig.due .v { color: var(--due); }
+.v.in { color: var(--in); } .v.out { color: var(--out); }
+
+/* entry */
+.entry { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 10px; }
+.entry textarea { font: inherit; width: 100%; box-sizing: border-box; min-height: 64px; resize: vertical; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.entry textarea:focus, input:focus, select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button { font: inherit; cursor: pointer; border-radius: 8px; border: 1.5px solid transparent; padding: 8px 16px; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button:disabled { opacity: .55; cursor: default; }
+.btn-primary { background: var(--accent); color: var(--surface); font-weight: 700; }
+.btn-ghost { background: transparent; border-color: var(--line); color: var(--fg); }
+.hint { font-size: .87rem; color: var(--muted); }
+.hint code { background: var(--gold-soft); color: var(--fg); padding: 1px 6px; border-radius: 4px; font-family: inherit; }
+.msg { font-size: .92rem; min-height: 1.3em; }
+.msg.ok { color: var(--in); } .msg.err { color: var(--out); }
+.preview { border: 1.5px dashed var(--gold); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; background: var(--gold-soft); }
+.preview ul { margin: 0; padding-left: 18px; }
+
+details.form summary { cursor: pointer; font-weight: 500; color: var(--accent); }
+.grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 10px; }
+.grid-form label { display: grid; gap: 3px; font-size: .82rem; color: var(--muted); font-weight: 500; }
+.grid-form input, .grid-form select { font: inherit; color: var(--fg); background: var(--bg); border: 1.5px solid var(--line); border-radius: 8px; padding: 7px 9px; min-width: 0; }
+
+/* tables */
+.tablebox { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; min-width: 640px; }
+th { text-align: left; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 10px; border-bottom: 2px solid var(--line); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th.r, td.r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.cat { font-size: .82rem; color: var(--muted); }
+.bar { height: 5px; border-radius: 3px; background: var(--line); margin-top: 5px; overflow: hidden; max-width: 160px; }
+.bar i { display: block; height: 100%; background: var(--in); }
+.pill { display: inline-block; font-size: .72rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; letter-spacing: .03em; }
+.pill.in { color: var(--in); border: 1px solid var(--in); }
+.pill.out { color: var(--out); border: 1px solid var(--out); }
+.pill.done { color: var(--in); background: transparent; }
+td.due { color: var(--due); font-weight: 700; }
+td.act button { padding: 2px 8px; background: transparent; color: var(--muted); font-size: 1.05rem; line-height: 1; }
+td.act button:hover { color: var(--out); border-color: var(--line); }
+.empty { padding: 24px 16px; text-align: center; color: var(--muted); }
+.people { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.person { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 4px; }
+.person b { font-size: 1.02rem; }
+.person .kv { display: flex; justify-content: space-between; gap: 8px; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.tools input { font: inherit; padding: 7px 11px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); min-width: 0; flex: 1 1 180px; max-width: 300px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Shared by Santosh &amp; Anupama</div>
+    <h1>Pratyakcha's Wedding — Accounts</h1>
+    <p class="muted" id="sub">Loading the accounts…</p>
+  </header>
+
+  <section class="figs" id="figs" aria-label="Summary"></section>
+
+  <section class="entry" aria-label="Add an entry">
+    <h2><label for="nl">Add money in, a payment, or a new expense item</label></h2>
+    <textarea id="nl" placeholder="Paid ₹50,000 advance to Shree Caterers, Santosh, UPI"></textarea>
+    <div class="row">
+      <button class="btn-primary" id="readBtn" type="button">Read entry</button>
+      <span class="hint" id="nlHint">Write it the way you'd say it, in English or Hindi. Examples:
+        <code>Caterer total agreed 3.5 lakh, Santosh managing</code>
+        <code>Anupama gave 2 lakh to Santosh for wedding</code>
+        <code>Paid 20000 to decorator by Anupama cash on 15 Oct</code>. To speak, tap the mic on your phone keyboard.</span>
+    </div>
+    <div class="preview" id="preview" hidden></div>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+    <details class="form" id="formBox">
+      <summary>Or fill a form</summary>
+      <form id="manual">
+        <div class="grid-form">
+          <label>Type<select id="f-type">
+            <option value="out">Payment (money spent)</option>
+            <option value="in">Money in (someone gave money)</option>
+            <option value="item">New expense item (agreed amount)</option>
+          </select></label>
+          <label>Date<input id="f-date" type="date"></label>
+          <label>Amount (₹)<input id="f-amount" type="number" min="0" step="1" inputmode="numeric" placeholder="50000"></label>
+          <label id="l-item">Expense item<input id="f-item" list="itemList" placeholder="Catering"></label>
+          <label id="l-cat">Category<select id="f-cat"></select></label>
+          <label id="l-from">Money given by<input id="f-from" list="peopleList" placeholder="Anupama"></label>
+          <label id="l-by"><span id="byLabel">Paid by / managed by</span><input id="f-by" list="peopleList" placeholder="Santosh"></label>
+          <label id="l-mode">Mode<select id="f-mode"><option>Cash</option><option>UPI</option><option>Bank transfer</option><option>Card</option><option>Cheque</option></select></label>
+          <label>Note<input id="f-note" placeholder="Advance, receipt no. 12"></label>
+        </div>
+        <div class="row" style="margin-top:10px"><button class="btn-primary" type="submit">Save</button></div>
+      </form>
+      <datalist id="itemList"></datalist><datalist id="peopleList"></datalist>
+    </details>
+  </section>
+
+  <section aria-label="Who holds the money">
+    <div class="sec-head"><h2>Who holds the money</h2><span class="hint">Money received minus payments made, per person</span></div>
+    <div class="people" id="people"></div>
+  </section>
+
+  <section aria-label="Expense items">
+    <div class="sec-head"><h2>Expense items — what we still have to give</h2><span class="hint" id="itemsHint"></span></div>
+    <div class="tablebox"><table>
+      <thead><tr><th>Item</th><th>Managed by</th><th class="r">Agreed</th><th class="r">Paid</th><th class="r">Balance to give</th><th></th></tr></thead>
+      <tbody id="items"></tbody>
+    </table></div>
+  </section>
+
+  <section aria-label="Day book">
+    <div class="sec-head tools row"><h2>Day book</h2><input id="search" type="search" placeholder="Search entries" aria-label="Search entries"></div>
+    <div class="tablebox"><table>
+      <thead><tr><th>Date</th><th>Type</th><th>Details</th><th>By</th><th>Mode</th><th class="r">Amount</th><th></th></tr></thead>
+      <tbody id="txns"></tbody>
+    </table></div>
+  </section>
+</div>
+
+<script>
+const CATS = ["Venue & Tent", "Catering", "Decoration", "Clothes & Jewellery", "Gifts & Lena-dena", "Photography & Video", "Band, DJ & Music", "Pandit & Rituals", "Invitations", "Travel & Stay", "Makeup & Mehendi", "Other"];
+const inr = n => "₹" + Math.round(+n || 0).toLocaleString("en-IN");
+const $ = id => document.getElementById(id);
+const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+const fmtDate = d => { if (!d) return ""; const [y, m, dd] = d.split("-"); return new Date(+y, +m - 1, +dd).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }); };
+const slug = s => (s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9ऀ-ॿ]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "item";
+const norm = s => (s || "").trim().replace(/\s+/g, " ");
+const titleCase = s => norm(s).replace(/\b\p{Ll}/gu, c => c.toUpperCase());
+
+let db = null, sample = null, items = [], txns = [], query = "", pending = null;
+const say = (t, k) => { const m = $("msg"); m.className = "msg " + (k || ""); m.textContent = t; };
+
+/* ---------- derived numbers ---------- */
+function compute() {
+  const paidByItem = {};
+  let tin = 0, tout = 0;
+  const people = {};
+  const P = n => { const k = titleCase(n || "Not given"); return people[k] ??= { name: k, gave: 0, received: 0, paid: 0 }; };
+  for (const t of txns) {
+    const a = +t.amount || 0;
+    if (t.type === "in") { tin += a; if (t.from) P(t.from).gave += a; P(t.by).received += a; }
+    else { tout += a; P(t.by).paid += a; const k = t.itemId || slug(t.item); paidByItem[k] = (paidByItem[k] || 0) + a; }
+  }
+  let agreed = 0, due = 0;
+  const rows = items.map(i => {
+    const paid = paidByItem[i.id] || 0; const ag = +i.agreed || 0;
+    agreed += ag; const bal = Math.max(ag - paid, 0); due += bal;
+    return { ...i, paid, bal, ag };
+  });
+  for (const k of Object.keys(paidByItem)) if (!items.find(i => i.id === k)) {
+    const t = txns.find(x => (x.itemId || slug(x.item)) === k);
+    rows.push({ id: k, name: t ? t.item : k, category: t?.category || "Other", manager: "", paid: paidByItem[k], bal: 0, ag: 0, orphan: true });
+  }
+  return { tin, tout, agreed, due, rows, people: Object.values(people) };
+}
+
+/* ---------- render ---------- */
+function fig(label, value, sub, cls, vcls) {
+  const d = document.createElement("div"); d.className = "fig " + (cls || "");
+  d.innerHTML = '<span class="l"></span><span class="v"></span><span class="s"></span>';
+  d.querySelector(".l").textContent = label; const v = d.querySelector(".v"); v.textContent = value; if (vcls) v.classList.add(vcls);
+  d.querySelector(".s").textContent = sub || ""; return d;
+}
+
+function render() {
+  const c = compute();
+  $("sub").textContent = txns.length || items.length
+    ? txns.length + " entries · " + c.rows.length + " expense items · last entry " + (fmtDate([...txns].sort((a, b) => (b.date || "").localeCompare(a.date || ""))[0]?.date) || "—")
+    : "No entries yet. Add the first one below, or tell Claude in chat.";
+  const f = $("figs"); f.textContent = "";
+  f.append(
+    fig("Balance still to give", inr(c.due), "agreed " + inr(c.agreed) + " minus paid against items", "due"),
+    fig("Money put in", inr(c.tin), "all contributions so far", "", "in"),
+    fig("Spent so far", inr(c.tout), "all payments so far", "", "out"),
+    fig("Money in hand", inr(c.tin - c.tout), c.tin - c.tout < 0 ? "spent more than put in" : "put in minus spent"),
+    fig("Still needed", inr(Math.max(c.due - (c.tin - c.tout), 0)), "balance to give minus money in hand"),
+  );
+
+  const pe = $("people"); pe.textContent = "";
+  const plist = c.people.filter(p => p.received || p.paid || p.gave).sort((a, b) => (b.received + b.paid) - (a.received + a.paid));
+  if (!plist.length) pe.innerHTML = '<div class="person muted">Once money comes in or goes out, each person who handles it appears here with what they hold.</div>';
+  for (const p of plist) {
+    const d = document.createElement("div"); d.className = "person";
+    const hold = p.received - p.paid;
+    d.innerHTML = '<b></b><div class="kv"><span class="muted">Gave from own pocket</span><span></span></div><div class="kv"><span class="muted">Received to manage</span><span></span></div><div class="kv"><span class="muted">Paid out</span><span></span></div><div class="kv"><span class="muted">Holding now</span><b></b></div>';
+    d.querySelector("b").textContent = p.name;
+    const s = d.querySelectorAll(".kv span:last-child, .kv b");
+    s[0].textContent = inr(p.gave); s[1].textContent = inr(p.received); s[2].textContent = inr(p.paid); s[3].textContent = inr(hold);
+    if (hold < 0) { s[3].style.color = "var(--out)"; s[3].title = "Paid more than received: spent from own pocket"; }
+    pe.append(d);
+  }
+
+  const ib = $("items"); ib.textContent = "";
+  const rows = c.rows.sort((a, b) => b.bal - a.bal || (b.ag + b.paid) - (a.ag + a.paid));
+  $("itemsHint").textContent = rows.length ? rows.filter(r => r.bal > 0).length + " items with money still due" : "";
+  if (!rows.length) ib.innerHTML = '<tr><td colspan="6" class="empty">No expense items yet. Add one like “Caterer total agreed 3.5 lakh, Santosh managing”.</td></tr>';
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = '<td><div class="nm"></div><div class="cat"></div><div class="bar"><i></i></div></td><td></td><td class="r"></td><td class="r"></td><td class="r"></td><td class="act"></td>';
+    const t = tr.children;
+    t[0].querySelector(".nm").textContent = r.name;
+    t[0].querySelector(".cat").textContent = (r.category || "Other") + (r.note ? " · " + r.note : "");
+    t[0].querySelector(".bar i").style.width = r.ag ? Math.min(100, r.paid / r.ag * 100) + "%" : "0";
+    if (!r.ag) t[0].querySelector(".bar").hidden = true;
+    t[1].textContent = r.manager || "—";
+    t[2].textContent = r.ag ? inr(r.ag) : "not set";
+    t[3].textContent = inr(r.paid);
+    if (r.ag && r.bal === 0) { t[4].innerHTML = '<span class="pill done">Fully paid</span>'; }
+    else { t[4].textContent = r.ag ? inr(r.bal) : "—"; if (r.bal) t[4].classList.add("due"); }
+    if (!r.orphan) { const b = document.createElement("button"); b.type = "button"; b.textContent = "×"; b.title = "Delete item"; b.setAttribute("aria-label", "Delete item " + r.name);
+      b.onclick = () => confirmDelete(b, () => db.collection("items").doc(r.id).delete()); t[5].append(b); }
+    ib.append(tr);
+  }
+
+  const tb = $("txns"); tb.textContent = "";
+  const q = query.toLowerCase();
+  const list = [...txns].sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.created || 0) - (a.created || 0))
+    .filter(t => !q || [t.item, t.from, t.by, t.note, t.mode, t.category].join(" ").toLowerCase().includes(q));
+  if (!list.length) tb.innerHTML = '<tr><td colspan="7" class="empty"></td></tr>', tb.querySelector("td").textContent = txns.length ? "No entries match your search." : "No money in or payments yet.";
+  for (const t of list) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = '<td class="num"></td><td></td><td></td><td></td><td></td><td class="r"></td><td class="act"><button type="button" title="Delete entry" aria-label="Delete entry">×</button></td>';
+    const x = tr.children;
+    x[0].textContent = fmtDate(t.date);
+    x[1].innerHTML = t.type === "in" ? '<span class="pill in">Money in</span>' : '<span class="pill out">Payment</span>';
+    x[2].textContent = t.type === "in" ? ("From " + (t.from || "—")) + (t.note ? " · " + t.note : "") : (t.item || "—") + (t.note ? " · " + t.note : "");
+    x[3].textContent = t.type === "in" ? (t.by ? "to " + t.by : "—") : (t.by || "—");
+    x[4].textContent = t.mode || "";
+    x[5].textContent = (t.type === "in" ? "+" : "−") + inr(t.amount);
+    x[5].style.color = t.type === "in" ? "var(--in)" : "var(--out)";
+    const b = x[6].querySelector("button"); b.onclick = () => confirmDelete(b, () => db.collection("txns").doc(t.id).delete());
+    tb.append(tr);
+  }
+
+  $("itemList").innerHTML = ""; c.rows.forEach(r => { const o = document.createElement("option"); o.value = r.name; $("itemList").append(o); });
+  $("peopleList").innerHTML = ""; [...new Set(["Santosh", "Anupama", ...c.people.map(p => p.name)])].filter(n => n !== "Not Given")
+    .forEach(n => { const o = document.createElement("option"); o.value = n; $("peopleList").append(o); });
+}
+
+function confirmDelete(btn, run) {
+  if (btn.dataset.armed) { run().then(() => say("Deleted.", "ok")).catch(e => say(errText(e), "err")); return; }
+  btn.dataset.armed = "1"; btn.textContent = "Delete?"; btn.style.color = "var(--out)";
+  setTimeout(() => { if (btn.isConnected) { delete btn.dataset.armed; btn.textContent = "×"; btn.style.color = ""; } }, 3000);
+}
+const errText = e => e && e.code === "not_granted" ? "You can view these accounts but not edit them. Ask Santosh for edit access." : "That didn't save (" + (e && e.message || e) + "). Try again.";
+
+/* ---------- saving ---------- */
+async function saveAction(a) {
+  const created = Date.now();
+  if (a.action === "item") {
+    const name = titleCase(a.item); const id = slug(name);
+    const ex = items.find(i => i.id === id);
+    const data = { id, name: ex?.name || name, category: a.category || ex?.category || "Other", agreed: a.amount ?? ex?.agreed ?? null, manager: titleCase(a.by) || ex?.manager || "", note: a.note || ex?.note || "", created: ex?.created || created };
+    await db.collection("items").doc(id).set(data);
+    return (ex ? "Updated item " : "Added item ") + data.name + (data.agreed ? " (agreed " + inr(data.agreed) + ")" : "");
+  }
+  const id = "t" + created + Math.random().toString(36).slice(2, 6);
+  const base = { id, type: a.action === "in" ? "in" : "out", date: a.date || today(), amount: Math.round(+a.amount || 0), by: titleCase(a.by), mode: a.mode || "", note: a.note || "", created };
+  if (base.type === "in") base.from = titleCase(a.from);
+  else {
+    const name = titleCase(a.item || "Other"); const iid = slug(name);
+    let it = items.find(i => i.id === iid);
+    if (!it) { it = { id: iid, name, category: a.category || "Other", agreed: null, manager: base.by, note: "", created }; await db.collection("items").doc(iid).set(it); }
+    base.item = it.name; base.itemId = iid; base.category = it.category;
+  }
+  await db.collection("txns").doc(id).set(base);
+  return base.type === "in" ? "Saved: " + inr(base.amount) + " from " + (base.from || "—") + " to " + (base.by || "—") : "Saved: paid " + inr(base.amount) + " for " + base.item;
+}
+
+function describe(a) {
+  if (a.action === "item") return "New/updated expense item: " + titleCase(a.item) + (a.amount ? ", agreed " + inr(a.amount) : "") + (a.by ? ", managed by " + titleCase(a.by) : "") + (a.category ? " [" + a.category + "]" : "");
+  if (a.action === "in") return "Money in: " + inr(a.amount) + " from " + (titleCase(a.from) || "?") + " to " + (titleCase(a.by) || "?") + (a.mode ? " by " + a.mode : "") + " on " + fmtDate(a.date || today());
+  return "Payment: " + inr(a.amount) + " for " + (titleCase(a.item) || "?") + (a.by ? ", paid by " + titleCase(a.by) : "") + (a.mode ? ", " + a.mode : "") + " on " + fmtDate(a.date || today()) + (a.note ? " (" + a.note + ")" : "");
+}
+
+async function readEntry() {
+  const text = $("nl").value.trim(); if (!text) return say("Write an entry first.", "err");
+  if (!sample) { $("formBox").open = true; return say("Reading written entries isn't available here. Use the form below.", "err"); }
+  $("readBtn").disabled = true; say("Reading…");
+  const prompt = `You convert notes about a family's wedding expenses (India, rupees) into JSON. Today is ${today()}.
+Known expense items: ${JSON.stringify(items.map(i => i.name))}
+Known people: ${JSON.stringify([...new Set(["Santosh", "Anupama", ...txns.flatMap(t => [t.by, t.from]).filter(Boolean)])])}
+Categories (pick one): ${JSON.stringify(CATS)}
+Return {"actions":[...]} where each action is one of:
+- {"action":"item","item":name,"amount":total agreed/estimated rupees or null,"by":who manages it or "","category":one category,"note":""}  (a vendor/expense head and its agreed total, no money moving yet)
+- {"action":"out","item":expense item name (reuse a known one when it matches),"amount":rupees,"by":who paid,"mode":"Cash"|"UPI"|"Bank transfer"|"Card"|"Cheque"|"","date":"YYYY-MM-DD","category":one category,"note":"e.g. advance, vendor name"}
+- {"action":"in","amount":rupees,"from":who gave the money,"by":who received it to manage (same as from if they keep it),"mode":"","date":"YYYY-MM-DD","note":""}
+Rules: 1 lakh = 100000, 1 crore = 10000000, "50k" = 50000. If a payment mentions an agreed total too, emit both an item action and an out action. Dates without a year are this year. Never invent amounts; if no amount is given for a payment, return {"actions":[],"question":"short question"}. Input may be Hindi or Hinglish.
+Note: ${text}`;
+  try {
+    const r = await sample.json(prompt, { cache: false, modelTier: "default" });
+    const acts = (r && Array.isArray(r.actions)) ? r.actions.filter(a => a && ["item", "in", "out"].includes(a.action)) : [];
+    if (!acts.length) { say(r && r.question ? r.question : "I couldn't find an amount or item in that. Try again with the amount and what it was for.", "err"); return; }
+    pending = acts;
+    const pv = $("preview"); pv.hidden = false; pv.innerHTML = "<b>Check before saving</b><ul></ul>";
+    acts.forEach(a => { const li = document.createElement("li"); li.textContent = describe(a); pv.querySelector("ul").append(li); });
+    const row = document.createElement("div"); row.className = "row";
+    const ok = document.createElement("button"); ok.className = "btn-primary"; ok.type = "button"; ok.textContent = "Save";
+    const no = document.createElement("button"); no.className = "btn-ghost"; no.type = "button"; no.textContent = "Cancel";
+    ok.onclick = async () => { ok.disabled = true; try { const out = []; for (const a of pending) out.push(await saveAction(a)); say(out.join(" · "), "ok"); $("nl").value = ""; } catch (e) { say(errText(e), "err"); } pv.hidden = true; pending = null; };
+    no.onclick = () => { pv.hidden = true; pending = null; say(""); };
+    row.append(ok, no); pv.append(row); say("");
+  } catch (e) {
+    if (e && e.code === "not_granted") { sample = null; $("formBox").open = true; say("Reading written entries wasn't allowed. Use the form below.", "err"); }
+    else say("Couldn't read that just now. Try again, or use the form below.", "err");
+  } finally { $("readBtn").disabled = false; }
+}
+
+/* ---------- form ---------- */
+CATS.forEach(c => { const o = document.createElement("option"); o.textContent = c; $("f-cat").append(o); });
+$("f-date").value = today();
+function syncForm() {
+  const t = $("f-type").value;
+  $("l-from").hidden = t !== "in"; $("l-item").hidden = t === "in"; $("l-cat").hidden = t === "in"; $("l-mode").hidden = t === "item";
+  $("byLabel").textContent = t === "in" ? "Given to (who manages it)" : t === "item" ? "Managed by" : "Paid by";
+}
+$("f-type").onchange = syncForm; syncForm();
+$("manual").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!db) return say("The accounts aren't connected yet. Sign in to claude.ai and reload.", "err");
+  const t = $("f-type").value, amount = +$("f-amount").value;
+  if (t !== "item" && !(amount > 0)) return say("Enter the amount in rupees.", "err");
+  if (t !== "in" && !$("f-item").value.trim()) return say("Enter the expense item, for example Catering.", "err");
+  try {
+    const msg = await saveAction({ action: t, amount: amount || null, date: $("f-date").value, item: $("f-item").value, category: $("f-cat").value, from: $("f-from").value, by: $("f-by").value, mode: $("f-mode").value, note: $("f-note").value });
+    say(msg, "ok"); ["f-amount", "f-item", "f-from", "f-note"].forEach(i => $(i).value = "");
+  } catch (err) { say(errText(err), "err"); }
+});
+$("readBtn").onclick = readEntry;
+$("search").oninput = e => { query = e.target.value.trim(); render(); };
+render();
+
+(async () => {
+  db = window.claude ? await window.claude.use("db") : null;
+  if (!db) { $("sub").textContent = "Sign in to claude.ai to see and update the accounts."; return; }
+  db.collection("items").onSnapshot(s => { items = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, e => say("Couldn't load items (" + e.message + ").", "err"));
+  db.collection("txns").onSnapshot(s => { txns = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, e => say("Couldn't load entries (" + e.message + ").", "err"));
+  sample = await window.claude.use("sample");
+  if (!sample) $("nlHint").textContent = "Reading written entries isn't available here; use the form below.";
+})();
+</script>
