@@ -319,7 +319,7 @@ function pickVoice() {
 }
 function setSpeakBtn(on) { const b = $("speakBtn"); if (b) { b.textContent = on ? "⏹ Stop reading" : "🔊 Read aloud"; b.setAttribute("aria-pressed", on ? "true" : "false"); } }
 function speak(text) {
-  if (!tts || typeof SpeechSynthesisUtterance === "undefined") return say("This phone's browser can't read aloud here.", "err");
+  if (!tts || typeof SpeechSynthesisUtterance === "undefined") return say("Reading aloud doesn't work inside this app. Open this page's link in Chrome (Android) or Safari (iPhone) and tap Read aloud there.", "err");
   if (tts.speaking || tts.pending) { tts.cancel(); setSpeakBtn(false); return; }
   const parts = text.split(/(?<=[.])\s+/).filter(Boolean), voice = pickVoice();
   parts.forEach((p, i) => {
