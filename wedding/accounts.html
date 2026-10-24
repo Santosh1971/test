@@ -388,11 +388,14 @@ function confirmDelete(btn, run) {
 const errText = e => e && e.code === "not_granted" ? "You can view these accounts but not edit them. Ask Santosh for edit access." : "That didn't save (" + (e && e.message || e) + "). Try again.";
 
 /* ---------- saving ---------- */
+function findItem(name) {
+  const k = slug(name);
+  return items.find(i => i.id === k || slug(i.name) === k);
+}
 async function saveAction(a) {
   const created = Date.now();
   if (a.action === "item") {
-    const name = titleCase(a.item); const id = slug(name);
-    const ex = items.find(i => i.id === id);
+    const name = titleCase(a.item); const ex = findItem(name); const id = ex ? ex.id : slug(name);
     const data = { id, name: ex?.name || name, category: a.category || ex?.category || "Other", agreed: a.amount ?? ex?.agreed ?? null, manager: titleCase(a.by) || ex?.manager || "", note: a.note || ex?.note || "", created: ex?.created || created };
     await db.collection("items").doc(id).set(data);
     return (ex ? "Updated item " : "Added item ") + data.name + (data.agreed ? " (agreed " + inr(data.agreed) + ")" : "");
@@ -401,8 +404,7 @@ async function saveAction(a) {
   const base = { id, type: a.action === "in" ? "in" : "out", date: a.date || today(), amount: Math.round(+a.amount || 0), by: titleCase(a.by), mode: a.mode || "", note: a.note || "", created };
   if (base.type === "in") { base.from = titleCase(a.from); base.planned = !!a.planned; }
   else {
-    const name = titleCase(a.item || "Other"); const iid = slug(name);
-    let it = items.find(i => i.id === iid);
+    const name = titleCase(a.item || "Other"); let it = findItem(name); const iid = it ? it.id : slug(name);
     if (!it) { it = { id: iid, name, category: a.category || "Other", agreed: null, manager: base.by, note: "", created }; await db.collection("items").doc(iid).set(it); }
     base.item = it.name; base.itemId = iid; base.category = it.category;
   }
