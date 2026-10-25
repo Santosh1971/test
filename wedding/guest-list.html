@@ -72,7 +72,9 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .showing { min-height: 1.2em; }
 .tools input { font: inherit; padding: 8px 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); flex: 1 1 200px; min-width: 0; max-width: 340px; }
 .tablebox { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
-table { width: 100%; border-collapse: collapse; min-width: 1090px; }
+table { width: 100%; border-collapse: collapse; min-width: 990px; table-layout: fixed; }
+td.rel select, td.stay select { font-size: .88rem; padding-inline: 2px; }
+td.nm input { font-weight: 500; }
 th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 10px 8px; border-bottom: 2px solid var(--line); position: sticky; top: 0; background: var(--surface); }
 td { padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 tr:last-child td { border-bottom: 0; }
@@ -138,6 +140,7 @@ td.act button:hover { color: var(--err); border-color: var(--line); }
     <div class="showing hint" id="showing" aria-live="polite"></div>
     <div class="tablebox">
       <table>
+        <colgroup><col style="width:44px"><col style="width:250px"><col style="width:72px"><col style="width:64px"><col style="width:128px"><col style="width:108px"><col style="width:100px"><col style="width:88px"><col style="width:96px"><col style="width:36px"></colgroup>
         <thead><tr><th>SN</th><th>Name</th><th style="text-align:right">Persons</th><th style="text-align:right">Rooms</th><th>Related to</th><th>Coming on</th><th>Hotel</th><th>Stay</th><th>Room no.</th><th><span class="sr" hidden>Delete</span></th></tr></thead>
         <tbody id="rows"><tr><td colspan="10" class="empty">Loading guests…</td></tr></tbody>
       </table>
@@ -343,7 +346,7 @@ function renderRows() {
       '<td class="num"><input type="number" min="0" inputmode="numeric" aria-label="Rooms"></td>' +
       '<td class="rel"><select aria-label="Related to"></select></td>' +
       '<td class="stay"><select aria-label="Coming on" class="att"><option value="">—</option><option>Day 1</option><option>Day 2</option><option>Both days</option></select></td>' +
-      '<td class="stay"><select aria-label="Hotel"><option value="">—</option><option>Hotel 1</option><option>Hotel 2</option><option value="No hotel">Local – no room</option></select></td>' +
+      '<td class="stay"><select aria-label="Hotel"><option value="">—</option><option>Hotel 1</option><option>Hotel 2</option><option value="No hotel">Local</option></select></td>' +
       '<td class="stay"><select aria-label="Days of stay"><option value="">—</option><option>1 day</option><option>2 days</option></select></td>' +
       '<td class="rno"><input aria-label="Room number" placeholder="—"></td>' +
       '<td class="act"><button type="button" title="Delete row" aria-label="Delete row">×</button></td>';
