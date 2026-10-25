@@ -18,19 +18,19 @@
   --display: "Tiro Devanagari Hindi", Georgia, serif;
   --body: "Mukta", "Noto Sans Devanagari", system-ui, sans-serif;
   /* group colors */
-  --c-rel: #8a1c3c; --c-anu: #b5487a; --c-san: #2e5f8a; --c-blr: #2f7d4f; --c-pra: #c27a07; --c-none: #8d7f84;
+  --c-rel: #8a1c3c; --c-anu: #b5487a; --c-san: #2e5f8a; --c-blr: #2f7d4f; --c-pra: #c27a07; --c-boy: #5b4a9e; --c-none: #8d7f84;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #1b1316; --surface: #251a1e; --fg: #f3e9ec; --muted: #b5a2a8; --line: #3d2c32;
   --maroon: #e97a9b; --marigold: #f2b544; --marigold-soft: #3a2a12;
   --ok: #6fcf97; --warn: #f2a65a; --err: #ff8a80;
-  --c-rel: #e97a9b; --c-anu: #e59bc0; --c-san: #7fb2e5; --c-blr: #6fcf97; --c-pra: #f2b544; --c-none: #a7979c;
+  --c-rel: #e97a9b; --c-anu: #e59bc0; --c-san: #7fb2e5; --c-blr: #6fcf97; --c-pra: #f2b544; --c-boy: #b3a4f0; --c-none: #a7979c;
   color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #1b1316; --surface: #251a1e; --fg: #f3e9ec; --muted: #b5a2a8; --line: #3d2c32;
   --maroon: #e97a9b; --marigold: #f2b544; --marigold-soft: #3a2a12;
   --ok: #6fcf97; --warn: #f2a65a; --err: #ff8a80;
-  --c-rel: #e97a9b; --c-anu: #e59bc0; --c-san: #7fb2e5; --c-blr: #6fcf97; --c-pra: #f2b544; --c-none: #a7979c;
+  --c-rel: #e97a9b; --c-anu: #e59bc0; --c-san: #7fb2e5; --c-blr: #6fcf97; --c-pra: #f2b544; --c-boy: #b3a4f0; --c-none: #a7979c;
   color-scheme: dark }
 
 body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.45; }
@@ -155,9 +155,10 @@ const GROUPS = [
   { key: "Santosh Friend", color: "--c-san" },
   { key: "Bangalore Friend", color: "--c-blr" },
   { key: "Pratyakcha Friend", color: "--c-pra" },
+  { key: "Boy's Side", color: "--c-boy" },
   { key: "Not decided", color: "--c-none" },
 ];
-const colorOf = g => (GROUPS.find(x => x.key === g) || GROUPS[5]).color;
+const colorOf = g => (GROUPS.find(x => x.key === g) || GROUPS[GROUPS.length - 1]).color;
 
 let col = null, guests = [], filter = null, stayFilter = "", query = "", lastUndo = null, flashSn = null;
 const $ = id => document.getElementById(id);
@@ -173,6 +174,7 @@ const GROUP_RX = [
   ["Bangalore Friend", /\b(?:bangalore|bengaluru|banglore|blr)(?:\s+friends?)?\b/i],
   ["Pratyakcha Friend", /\b(?:pratyakcha|pratyaksha|pratyakchha)(?:'s)?(?:\s+friends?)?\b/i],
   ["Relatives", /\b(?:relatives?|relation|family|rishtedar)\b/i],
+  ["Boy's Side", /\b(?:boy'?s?\s*side|groom'?s?\s*side|ladke\s*wale|barati|baraati)\b/i],
   ["Not decided", /\b(?:not decided|unassigned|undecided)\b/i],
 ];
 
@@ -413,7 +415,8 @@ function renderHotels() {
   const unmarked = guests.filter(x => !x.attend).length;
   const d = document.createElement("div"); d.className = "hotel";
   d.innerHTML = "<b>Coming</b> · <span class='n'></span> · <span class='m'></span>";
-  d.querySelector(".n").textContent = "Day 1: " + day(1) + " persons, Day 2: " + day(2) + " persons";
+  const lunch = guests.filter(x => (x.attend === "Day 2" || x.attend === "Both days") && x.hotel !== "No hotel").reduce((a, x) => a + (+x.persons || 0), 0);
+  d.querySelector(".n").textContent = "3 Dec dinner: " + day(1) + " · 4 Dec lunch: " + lunch + " (no locals) · 4 Dec dinner: " + day(2);
   d.querySelector(".m").textContent = "Local: " + local + " persons" + (unmarked ? " · " + unmarked + " entries not marked" : "");
   box.append(d);
 }
@@ -465,7 +468,8 @@ function guestSpeech() {
   }
   for (const name of Object.keys(BOOKED)) { const st = hotelStats(name); t += name + ": " + st.rooms + " of " + BOOKED[name] + " rooms given. "; }
   const dayP = n => guests.filter(x => x.attend === "Day " + n || x.attend === "Both days").reduce((a, x) => a + (+x.persons || 0), 0);
-  t += "Coming on day 1: " + dayP(1) + " persons. Day 2: " + dayP(2) + " persons. ";
+  const lunchP = guests.filter(x => (x.attend === "Day 2" || x.attend === "Both days") && x.hotel !== "No hotel").reduce((a, x) => a + (+x.persons || 0), 0);
+  t += "3 December dinner: " + dayP(1) + " persons. 4 December lunch, without locals: " + lunchP + " persons. 4 December dinner: " + dayP(2) + " persons. ";
   if (unknown) t += unknown + " entries still need a head count.";
   return t;
 }
