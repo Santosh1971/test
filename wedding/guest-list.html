@@ -66,6 +66,10 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 /* table */
 .tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
 .row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font-size: .85rem; padding: 4px 12px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--fg); font-variant-numeric: tabular-nums; }
+.chip.on { background: var(--maroon); border-color: var(--maroon); color: var(--surface); font-weight: 700; }
+.showing { min-height: 1.2em; }
 .tools input { font: inherit; padding: 8px 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); flex: 1 1 200px; min-width: 0; max-width: 340px; }
 .tablebox { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 table { width: 100%; border-collapse: collapse; min-width: 1090px; }
@@ -130,6 +134,8 @@ td.act button:hover { color: var(--err); border-color: var(--line); }
       <input id="search" type="search" placeholder="Search names" aria-label="Search names">
       <span class="row-btns"><button class="btn-ghost" id="speakBtn" type="button" aria-pressed="false">🔊 Read aloud</button> <button class="btn-ghost" id="addBtn" type="button">+ Add guest</button></span>
     </div>
+    <div class="chips" role="group" aria-label="Filter by stay and day" id="chips"></div>
+    <div class="showing hint" id="showing" aria-live="polite"></div>
     <div class="tablebox">
       <table>
         <thead><tr><th>SN</th><th>Name</th><th style="text-align:right">Persons</th><th style="text-align:right">Rooms</th><th>Related to</th><th>Coming on</th><th>Hotel</th><th>Stay</th><th>Room no.</th><th><span class="sr" hidden>Delete</span></th></tr></thead>
@@ -150,7 +156,7 @@ const GROUPS = [
 ];
 const colorOf = g => (GROUPS.find(x => x.key === g) || GROUPS[5]).color;
 
-let col = null, guests = [], filter = null, query = "", lastUndo = null, flashSn = null;
+let col = null, guests = [], filter = null, stayFilter = "", query = "", lastUndo = null, flashSn = null;
 const $ = id => document.getElementById(id);
 const docId = sn => "g" + String(sn).padStart(4, "0");
 
@@ -280,9 +286,36 @@ function renderTotals() {
   });
 }
 
+const STAY_FILTERS = [
+  { key: "", label: "All" },
+  { key: "h1", label: "Hotel 1", test: x => x.hotel === "Hotel 1" },
+  { key: "h2", label: "Hotel 2", test: x => x.hotel === "Hotel 2" },
+  { key: "local", label: "Local – no room", test: x => x.hotel === "No hotel" },
+  { key: "nohotel", label: "Hotel not set", test: x => !x.hotel },
+  { key: "d1", label: "Coming Day 1", test: x => x.attend === "Day 1" || x.attend === "Both days" },
+  { key: "d2", label: "Coming Day 2", test: x => x.attend === "Day 2" || x.attend === "Both days" },
+  { key: "both", label: "Both days", test: x => x.attend === "Both days" },
+  { key: "noday", label: "Day not set", test: x => !x.attend },
+];
+function renderChips() {
+  const box = $("chips"); box.textContent = "";
+  for (const f of STAY_FILTERS) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip" + (stayFilter === f.key ? " on" : "");
+    b.setAttribute("aria-pressed", stayFilter === f.key ? "true" : "false");
+    const n = f.test ? guests.filter(f.test).length : guests.length;
+    b.textContent = f.label + " · " + n;
+    b.onclick = () => { stayFilter = f.key; renderChips(); renderRows(); };
+    box.append(b);
+  }
+}
+function filterLabel() {
+  return [filter, (STAY_FILTERS.find(f => f.key === stayFilter && f.key) || {}).label, query && "“" + query + "”"].filter(Boolean).join(" · ");
+}
+
 function visibleGuests() {
   const q = query.toLowerCase();
-  return guests.filter(x => (!filter || (x.relation || "Not decided") === filter) &&
+  const sf = STAY_FILTERS.find(f => f.key === stayFilter);
+  return guests.filter(x => (!filter || (x.relation || "Not decided") === filter) && (!sf || !sf.test || sf.test(x)) &&
     (!q || (x.name || "").toLowerCase().includes(q) || (x.hindi || "").includes(query) || String(x.sn) === q));
 }
 
@@ -295,6 +328,8 @@ function roomShares(g) {
 function renderRows() {
   const tb = $("rows"); tb.textContent = "";
   const list = visibleGuests();
+  const lbl = filterLabel();
+  $("showing").textContent = lbl ? "Showing " + list.length + " of " + guests.length + " entries (" + lbl + ") · " + list.reduce((a, x) => a + (+x.persons || 0), 0) + " persons · " + list.reduce((a, x) => a + (+x.rooms || 0), 0) + " rooms" : "";
   if (!list.length) {
     tb.innerHTML = '<tr><td colspan="10" class="empty"></td></tr>';
     tb.querySelector("td").textContent = guests.length ? "No guests match this filter." : "No guests yet. Type \"add\" and a name above to add the first one.";
@@ -351,9 +386,9 @@ function render() {
   const rooms = guests.reduce((a, x) => a + (+x.rooms || 0), 0);
   const unknown = guests.filter(x => x.persons == null).length;
   $("sub").textContent = guests.length + " entries · " + persons + " persons · " + rooms + " rooms" + (unknown ? " · " + unknown + " entries still need a head count" : "");
-  renderTotals(); renderHotels(); renderRows();
+  renderTotals(); renderHotels(); renderChips(); renderRows();
 }
-const BOOKED = { "Hotel 1": 60, "Hotel 2": 10 };
+const BOOKED = { "Hotel 1": 60, "Hotel 2": 13 };
 function hotelStats(name) {
   const l = guests.filter(x => x.hotel === name);
   return { entries: l.length, persons: l.reduce((a, x) => a + (+x.persons || 0), 0), rooms: l.reduce((a, x) => a + (+x.rooms || 0), 0),
@@ -411,11 +446,11 @@ if (tts) { tts.getVoices(); tts.onvoiceschanged = () => tts.getVoices(); }
 
 function guestSpeech() {
   const sum = list => [list.reduce((a, x) => a + (+x.persons || 0), 0), list.reduce((a, x) => a + (+x.rooms || 0), 0)];
-  if (filter || query) {
+  if (filter || query || stayFilter) {
     const list = visibleGuests();
     if (!list.length) return "No guests match this filter.";
     const [p, r] = sum(list);
-    return list.length + (list.length === 1 ? " entry" : " entries") + (filter ? " in " + filter : "") + ", " + p + " persons, " + r + " rooms. " +
+    return list.length + (list.length === 1 ? " entry" : " entries") + (filterLabel() ? ", " + filterLabel().replace(/[“”]/g, "") : "") + ", " + p + " persons, " + r + " rooms. " +
       list.map(g => "Serial " + g.sn + ", " + spokenName(g.name) + ", " + (g.persons == null ? "count not given" : g.persons + (g.persons === 1 ? " person" : " persons")) +
         (g.rooms ? ", " + g.rooms + (g.rooms === 1 ? " room" : " rooms") : "") + ", " + (g.relation || "Not decided") + (g.hotel ? ", " + (g.hotel === "No hotel" ? "local, no room" : g.hotel) : "") + (g.stay ? ", " + g.stay : "") + (g.roomNo ? ", room number " + g.roomNo : "") + (g.attend ? ", coming " + g.attend : "") + ".").join(" ");
   }
